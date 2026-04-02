@@ -12,6 +12,8 @@ pub struct Package {
 #[derive(Debug, Clone)]
 pub enum PackageSource {
     CargoToml,
+    PyPI,
+    Npm,
     System,
 }
 

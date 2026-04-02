@@ -1,33 +1,50 @@
 use crate::core::types::*;
 use serde::Deserialize;
+use serde_json::json;
 use std::io::Read;
 
 pub struct OsvFetcher;
 
 impl OsvFetcher {
-    pub fn fetch_rust_vulns() -> Result<Vec<Vulnerability>, String> {
-        let body = r#"{"ecosystem": "crates.io"}"#;
+    pub fn fetch_data(pkg: Package) -> Result<Vec<Vulnerability>, String> {
+        let mut all = Vec::new();
 
-        let response = ureq::post("https://api.osv.dev/v1/query")
-            .set("Content-Type", "application/json")
-            .send_string(body)
-            .map_err(|e| e.to_string())?;
+        let url = "https://api.osv.dev/v1/query";
+
+        // example query: { "package": { "name": "jinja2", "ecosystem": "PyPI" }, "version": "3.1.4" }
+
+        let query = json!({
+                "version": pkg.version,
+                "package": {
+                    "name": pkg.name,
+                    "ecosystem": pkg.source
+                }
+            });
+
+        let response: serde_json::Value = ureq::post(url)
+            .send_json(query)?
+            .into_json()?;
 
         let mut reader = response.into_reader();
         let mut text = String::new();
+
+        use std::io::Read;
         reader.read_to_string(&mut text)
             .map_err(|e| e.to_string())?;
 
         let parsed: OsvResponse =
             serde_json::from_str(&text).map_err(|e| e.to_string())?;
 
-        Ok(Self::parse_osv(parsed))
+        let mut vulns = Self::parse_osv(parsed);
+        all.append(&mut vulns);
+
+        Ok(all)
     }
 
     fn parse_osv(parsed: OsvResponse) -> Vec<Vulnerability> {
         let mut results = Vec::new();
 
-        for vuln in parsed.vulns {
+        for vuln in parsed {
             for affected in vuln.affected {
                 let package = affected.package.name;
 
@@ -80,10 +97,7 @@ impl OsvFetcher {
 // Typed OSV structs
 //
 
-#[derive(Debug, Deserialize)]
-struct OsvResponse {
-    vulns: Vec<OsvVuln>,
-}
+type OsvResponse = Vec<OsvVuln>;
 
 #[derive(Debug, Deserialize)]
 struct OsvVuln {
