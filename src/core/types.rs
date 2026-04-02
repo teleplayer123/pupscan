@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone)]
 pub struct Package {
@@ -14,7 +15,7 @@ pub enum PackageSource {
     System,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Vulnerability {
     pub id: String,
     pub package: String,
@@ -22,7 +23,7 @@ pub struct Vulnerability {
     pub severity: Severity,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Severity {
     Low,
     Medium,

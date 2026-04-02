@@ -4,20 +4,19 @@ mod matcher;
 mod database;
 mod updater;
 
-use core::traits::{Matcher, Scanner, VulnerabilityStore};
+use core::traits::{Matcher, Scanner};
 
 use scanner::{CargoScanner, NpmScanner, PythonScanner};
 use matcher::SimpleMatcher;
-use database::JsonStore;
 use updater::{OsvFetcher, CacheManager};
 
 fn main() {
     // -----------------------------
-    // 1. Update / Load Vulnerabilities
+    // 1. Load / Update CVE Database
     // -----------------------------
     let cache = CacheManager {
         path: "vulns.json".into(),
-        max_age_secs: 60 * 60 * 24, // 24 hours
+        max_age_secs: 60 * 60 * 24,
     };
 
     let vulns = if cache.is_stale() {
@@ -26,12 +25,12 @@ fn main() {
         match OsvFetcher::fetch_rust_vulns() {
             Ok(v) => {
                 if let Err(e) = cache.save(&v) {
-                    eprintln!("Failed to save cache: {}", e);
+                    eprintln!("Cache save failed: {}", e);
                 }
                 v
             }
             Err(e) => {
-                eprintln!("Fetch failed, using cached data: {}", e);
+                eprintln!("Fetch failed: {}, using cache", e);
                 cache.load().unwrap_or_default()
             }
         }
@@ -42,42 +41,37 @@ fn main() {
     println!("Loaded {} vulnerabilities", vulns.len());
 
     // -----------------------------
-    // 2. Scan Project Files
+    // 2. Scan Files
     // -----------------------------
-    let cargo = CargoScanner;
-    let npm = NpmScanner;
-    let python = PythonScanner;
+    let scanners: Vec<Box<dyn Scanner>> = vec![
+        Box::new(CargoScanner),
+        Box::new(NpmScanner),
+        Box::new(PythonScanner),
+    ];
 
     let mut packages = Vec::new();
 
-    if let Ok(p) = cargo.scan("Cargo.toml") {
-        packages.extend(p);
-    }
-
-    if let Ok(p) = npm.scan("package.json") {
-        packages.extend(p);
-    }
-
-    if let Ok(p) = python.scan("requirements.txt") {
-        packages.extend(p);
+    for scanner in scanners {
+        if let Ok(mut p) = scanner.scan(".") {
+            packages.append(&mut p);
+        }
     }
 
     println!("Discovered {} packages", packages.len());
 
     // -----------------------------
-    // 3. Match Vulnerabilities
+    // 3. Match
     // -----------------------------
     let matcher = SimpleMatcher;
-
     let findings = matcher.match_packages(&packages, &vulns);
 
     // -----------------------------
-    // 4. Report Results
+    // 4. Report
     // -----------------------------
     if findings.is_empty() {
         println!("No known vulnerabilities found ✅");
     } else {
-        println!("Found {} potential issues:\n", findings.len());
+        println!("Found {} issues:\n", findings.len());
 
         for f in findings {
             println!(

@@ -1,6 +1,6 @@
 use crate::core::types::*;
 use std::fs;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::SystemTime;
 
 pub struct CacheManager {
     pub path: String,
@@ -11,12 +11,9 @@ impl CacheManager {
     pub fn is_stale(&self) -> bool {
         if let Ok(metadata) = fs::metadata(&self.path) {
             if let Ok(modified) = metadata.modified() {
-                let age = SystemTime::now()
-                    .duration_since(modified)
-                    .unwrap_or_default()
-                    .as_secs();
-
-                return age > self.max_age_secs;
+                if let Ok(age) = SystemTime::now().duration_since(modified) {
+                    return age.as_secs() > self.max_age_secs;
+                }
             }
         }
         true
@@ -29,10 +26,7 @@ impl CacheManager {
             .map_err(|e| e.to_string())?;
 
         fs::write(&tmp_path, json).map_err(|e| e.to_string())?;
-
-        // Atomic rename
-        fs::rename(tmp_path, &self.path)
-            .map_err(|e| e.to_string())?;
+        fs::rename(tmp_path, &self.path).map_err(|e| e.to_string())?;
 
         Ok(())
     }

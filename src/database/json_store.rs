@@ -20,7 +20,7 @@ impl VulnerabilityStore for JsonStore {
             vulns.push(Vulnerability {
                 id: v["id"].as_str().unwrap_or("").to_string(),
                 package: v["package"].as_str().unwrap_or("").to_string(),
-                affected_versions: v["affected_versions"]
+                version_ranges: v["version_ranges"]
                     .as_array()
                     .unwrap_or(&vec![])
                     .iter()
