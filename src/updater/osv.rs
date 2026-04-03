@@ -8,28 +8,6 @@ pub struct OsvFetcher;
 impl OsvFetcher {
     pub fn fetch_data(pkg: Package) -> Result<Vec<Vulnerability>, String> {
 
-// Example:
-// use serde::{Serialize, Deserialize};
-
-// #[derive(Serialize)]
-// struct MySendBody {
-//    thing: String,
-// }
-
-// #[derive(Deserialize)]
-// struct MyRecvBody {
-//    other: String,
-// }
-
-// let send_body = MySendBody { thing: "yo".to_string() };
-
-// // Requires the `json` feature enabled.
-// let recv_body = ureq::post("http://example.com/post/ingest")
-//     .header("X-My-Header", "Secret")
-//     .send_json(&send_body)?
-//     .body_mut()
-//     .read_json::<MyRecvBody>()?;
-
         let mut all = Vec::new();
 
         let url = "https://api.osv.dev/v1/query";
