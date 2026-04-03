@@ -24,7 +24,7 @@ fn main() {
 
         match OsvFetcher::fetch_all_ecosystems() {
             Ok(v) => {
-                if let Err(e) = OsvFetcher::save_to_database(v, "vulns.json") {
+                if let Err(e) = OsvFetcher::save_to_database(&v, "vulns.json") {
                     eprintln!("Database save failed: {}", e);
                 }
                 v

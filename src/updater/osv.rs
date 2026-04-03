@@ -18,11 +18,14 @@ impl OsvFetcher {
             }
         });
 
-        let response: OsvVuln = ureq::post(url)
+        let response_body = ureq::post(url)
             .set("Content-Type", "application/json")
-            .send(&query.to_string())
+            .send_string(&query.to_string())
             .map_err(|e| e.to_string())?
-            .into_json()
+            .into_string()
+            .map_err(|e| e.to_string())?;
+
+        let response: OsvVuln = serde_json::from_str(&response_body)
             .map_err(|e| e.to_string())?;
 
         let vulns = Self::parse_osv(response);
@@ -46,12 +49,17 @@ impl OsvFetcher {
                     "page": page
                 });
 
-                let response: OsvVuln = match ureq::post("https://api.osv.dev/v1/query")
+                let response_body = match ureq::post("https://api.osv.dev/v1/query")
                     .set("Content-Type", "application/json")
-                    .send(&query_with_page.to_string())
+                    .send_string(&query_with_page.to_string())
                     .map_err(|e| e.to_string())?
-                    .into_json()
+                    .into_string()
                 {
+                    Ok(s) => s,
+                    Err(_) => break,
+                };
+
+                let response: OsvVuln = match serde_json::from_str(&response_body) {
                     Ok(v) => v,
                     Err(_) => break,
                 };
@@ -69,13 +77,13 @@ impl OsvFetcher {
         Ok(all_vulns)
     }
 
-    pub fn save_to_database(vulns: Vec<Vulnerability>, db_path: &str) -> Result<(), String> {
+    pub fn save_to_database(vulns: &[Vulnerability], db_path: &str) -> Result<(), String> {
         let store = JsonStore {
             path: db_path.to_string(),
         };
 
         // Serialize to JSON and write to file
-        let json_data = serde_json::to_string_pretty(&vulns)
+        let json_data = serde_json::to_string_pretty(vulns)
             .map_err(|e| e.to_string())?;
 
         std::fs::write(&store.path, json_data)
@@ -142,14 +150,27 @@ impl OsvFetcher {
         results
     }
 
-    fn map_severity(osv_severity: &OsvSeverity) -> Severity {
-        match osv_severity {
-            OsvSeverity::Critical => Severity::Critical,
-            OsvSeverity::High => Severity::High,
-            OsvSeverity::Medium => Severity::Medium,
-            OsvSeverity::Low => Severity::Low,
-            _ => Severity::Medium,
-        }
+    fn map_severity(osv_severity: &[OsvSeverity]) -> Severity {
+        // Choose the highest severity from the list
+        let highest = osv_severity.iter().fold(Severity::Medium, |acc, item| {
+            let sev = match item {
+                OsvSeverity::Critical => Severity::Critical,
+                OsvSeverity::High => Severity::High,
+                OsvSeverity::Medium => Severity::Medium,
+                OsvSeverity::Low => Severity::Low,
+            };
+
+            match (acc, sev) {
+                (Severity::Critical, _) => Severity::Critical,
+                (_, Severity::Critical) => Severity::Critical,
+                (Severity::High, _) => Severity::High,
+                (_, Severity::High) => Severity::High,
+                (Severity::Medium, other) => other,
+                (_, _) => Severity::Medium,
+            }
+        });
+
+        highest
     }
 }
 
