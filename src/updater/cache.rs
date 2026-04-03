@@ -1,4 +1,5 @@
 use crate::core::types::*;
+use crate::database::json_store::JsonStore;
 use std::fs;
 use std::time::SystemTime;
 
@@ -19,23 +20,27 @@ impl CacheManager {
         true
     }
 
+    /// Save vulnerabilities while preserving existing data (non-destructive)
     pub fn save(&self, vulns: &[Vulnerability]) -> Result<(), String> {
-        let tmp_path = format!("{}.tmp", self.path);
-
-        let json = serde_json::to_string_pretty(vulns)
-            .map_err(|e| e.to_string())?;
-
-        fs::write(&tmp_path, json).map_err(|e| e.to_string())?;
-        fs::rename(tmp_path, &self.path).map_err(|e| e.to_string())?;
-
-        Ok(())
+        let store = JsonStore {
+            path: self.path.clone(),
+        };
+        store.save_merged(vulns)
     }
 
-    pub fn load(&self) -> Result<Vec<Vulnerability>, String> {
-        let data = fs::read_to_string(&self.path)
-            .map_err(|e| e.to_string())?;
+    /// Save vulnerabilities, completely replacing existing data (destructive)
+    pub fn save_overwrite(&self, vulns: &[Vulnerability]) -> Result<(), String> {
+        let store = JsonStore {
+            path: self.path.clone(),
+        };
+        store.save(vulns)
+    }
 
-        serde_json::from_str(&data)
-            .map_err(|e| e.to_string())
+    /// Load all vulnerabilities from cache
+    pub fn load(&self) -> Result<Vec<Vulnerability>, String> {
+        let store = JsonStore {
+            path: self.path.clone(),
+        };
+        store.load()
     }
 }

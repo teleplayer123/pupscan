@@ -34,13 +34,7 @@ impl OsvFetcher {
             .into_string()
             .map_err(|e| e.to_string())?;
 
-        #[derive(Deserialize)]
-        struct OsvQueryResponseInternal {
-            #[serde(default)]
-            vulns: Vec<OsvVuln>,
-        }
-
-        let response: OsvQueryResponseInternal = serde_json::from_str(&response_body)
+        let response: OsvQueryResponse = serde_json::from_str(&response_body)
             .map_err(|e| e.to_string())?;
 
         let mut results = Vec::new();
@@ -128,7 +122,6 @@ impl OsvFetcher {
 // Typed OSV structs
 //
 
-// OsvQueryResponse is no longer used as a top-level public type, but keep this for compatibility.
 #[derive(Debug, Deserialize)]
 pub struct OsvQueryResponse {
     #[serde(default)]
