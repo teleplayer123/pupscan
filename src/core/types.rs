@@ -9,7 +9,7 @@ pub struct Package {
     pub path: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum PackageSource {
     CargoToml,
     PyPI,

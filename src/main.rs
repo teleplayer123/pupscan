@@ -5,12 +5,42 @@ mod database;
 mod updater;
 
 use core::traits::{Matcher, Scanner};
-use std::env;
+use core::types::{Package, PackageSource};
 use std::path::Path;
 
 use scanner::{CargoScanner, NpmScanner, PythonScanner};
 use matcher::SimpleMatcher;
 use updater::{OsvFetcher, CacheManager};
+use clap::{Parser, Subcommand};
+
+#[derive(Parser)]
+#[command(name = "pupscan")]
+#[command(about = "A package vulnerability scanner")]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Scan a package manifest file or directory for vulnerabilities
+    Scan {
+        /// Path to the package manifest file or directory containing one
+        path: String,
+        /// Fetch vulnerabilities for all versions of packages, not just the specified versions
+        #[arg(long)]
+        all_versions: bool,
+    },
+    /// Fetch OSV vulnerability data for a specific package and version
+    Fetch {
+        /// Package ecosystem (crates.io, PyPI, npm)
+        ecosystem: String,
+        /// Package name
+        package: String,
+        /// Package version
+        version: String,
+    },
+}
 
 fn scanner_for_path(path: &Path) -> Vec<Box<dyn Scanner>> {
     let mut scanners: Vec<Box<dyn Scanner>> = Vec::new();
@@ -29,13 +59,16 @@ fn scanner_for_path(path: &Path) -> Vec<Box<dyn Scanner>> {
 }
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        eprintln!("Usage: pupscan <path-to-Cargo.toml-or-package.json-or-requirements.txt-or-directory>");
-        std::process::exit(1);
-    }
+    let cli = Cli::parse();
 
-    let input_path = Path::new(&args[1]);
+    match cli.command {
+        Commands::Scan { path, all_versions } => run_scan(&path, all_versions),
+        Commands::Fetch { ecosystem, package, version } => run_fetch(&ecosystem, &package, &version),
+    }
+}
+
+fn run_scan(input_path_str: &str, all_versions: bool) {
+    let input_path = Path::new(input_path_str);
     if !input_path.exists() {
         eprintln!("Path does not exist: {}", input_path.display());
         std::process::exit(1);
@@ -90,10 +123,29 @@ fn main() {
     }
 
     let mut all_vulns = Vec::new();
-    for pkg in &packages {
-        match OsvFetcher::fetch_data(pkg) {
-            Ok(mut pkg_vulns) => all_vulns.append(&mut pkg_vulns),
-            Err(err) => eprintln!("OSV fetch failed for {}: {}", pkg.name, err),
+    if all_versions {
+        // Collect unique packages by name and source, with version "*" to fetch all vulnerabilities
+        let mut unique_packages = std::collections::HashMap::new();
+        for pkg in &packages {
+            let key = (pkg.name.clone(), pkg.source.clone());
+            unique_packages.entry(key).or_insert(pkg.clone());
+        }
+        let mut fetch_packages: Vec<Package> = unique_packages.into_values().collect();
+        for pkg in &mut fetch_packages {
+            pkg.version = "*".to_string();
+        }
+        for pkg in &fetch_packages {
+            match OsvFetcher::fetch_data(pkg) {
+                Ok(mut pkg_vulns) => all_vulns.append(&mut pkg_vulns),
+                Err(err) => eprintln!("OSV fetch failed for {}: {}", pkg.name, err),
+            }
+        }
+    } else {
+        for pkg in &packages {
+            match OsvFetcher::fetch_data(pkg) {
+                Ok(mut pkg_vulns) => all_vulns.append(&mut pkg_vulns),
+                Err(err) => eprintln!("OSV fetch failed for {}: {}", pkg.name, err),
+            }
         }
     }
 
@@ -128,6 +180,44 @@ fn main() {
 
         if let Some(path) = &f.package.path {
             println!("  Path: {:?}", path);
+        }
+    }
+}
+
+fn run_fetch(ecosystem_str: &str, package_name: &str, version: &str) {
+    let source = match ecosystem_str {
+        "crates.io" => PackageSource::CargoToml,
+        "PyPI" => PackageSource::PyPI,
+        "npm" => PackageSource::Npm,
+        _ => {
+            eprintln!("Unsupported ecosystem: {}. Supported: crates.io, PyPI, npm", ecosystem_str);
+            std::process::exit(1);
+        }
+    };
+
+    let package = Package {
+        name: package_name.to_string(),
+        version: version.to_string(),
+        source,
+        path: None,
+    };
+
+    println!("Fetching OSV data for {}@{} in {}", package.name, package.version, ecosystem_str);
+
+    match OsvFetcher::fetch_data(&package) {
+        Ok(vulns) => {
+            if vulns.is_empty() {
+                println!("No vulnerabilities found for this package/version ✅");
+            } else {
+                println!("Found {} vulnerabilities:", vulns.len());
+                for vuln in vulns {
+                    println!("  {}: {}", vuln.id, vuln.version_ranges.join(", "));
+                }
+            }
+        }
+        Err(err) => {
+            eprintln!("Failed to fetch OSV data: {}", err);
+            std::process::exit(1);
         }
     }
 }
