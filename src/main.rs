@@ -216,6 +216,11 @@ fn run_fetch(ecosystem_str: &str, package_name: &str, version: &str) {
         }
     };
 
+    let cache = CacheManager {
+        path: "vulns.json".into(),
+        max_age_secs: 60 * 60 * 24,
+    };
+
     let package = Package {
         name: package_name.to_string(),
         version: version.to_string(),
@@ -231,6 +236,7 @@ fn run_fetch(ecosystem_str: &str, package_name: &str, version: &str) {
                 println!("No vulnerabilities found for this package/version ✅");
             } else {
                 println!("Found {} vulnerabilities:", vulns.len());
+                cache.save(&vulns).unwrap_or_else(|err| eprintln!("Failed to save cache: {}", err));
                 for vuln in vulns {
                     println!("  {}: {}", vuln.id, vuln.version_ranges.join(", "));
                 }
