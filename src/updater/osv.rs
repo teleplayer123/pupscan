@@ -39,9 +39,6 @@ impl OsvFetcher {
         let mut page = 1;
 
         for ecosystem in ecosystems {
-            let query = json!({
-                "ecosystem": ecosystem
-            });
 
             loop {
                 let query_with_page = json!({
