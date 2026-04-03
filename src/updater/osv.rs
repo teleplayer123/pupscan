@@ -10,13 +10,22 @@ impl OsvFetcher {
         let ecosystem = Self::map_ecosystem(&pkg.source);
         let url = "https://api.osv.dev/v1/query";
 
-        let query = json!({
-            "version": pkg.version,
-            "package": {
-                "name": pkg.name,
-                "ecosystem": ecosystem
-            }
-        });
+        let query = if pkg.version.is_empty() || pkg.version == "*" {
+            json!({
+                "package": {
+                    "name": pkg.name,
+                    "ecosystem": ecosystem
+                }
+            })
+        } else {
+            json!({
+                "version": pkg.version,
+                "package": {
+                    "name": pkg.name,
+                    "ecosystem": ecosystem
+                }
+            })
+        };
 
         let response_body = ureq::post(url)
             .set("Content-Type", "application/json")
@@ -25,53 +34,25 @@ impl OsvFetcher {
             .into_string()
             .map_err(|e| e.to_string())?;
 
-        let response: OsvVuln = serde_json::from_str(&response_body)
+        #[derive(Deserialize)]
+        struct OsvQueryResponseInternal {
+            #[serde(default)]
+            vulns: Vec<OsvVuln>,
+        }
+
+        let response: OsvQueryResponseInternal = serde_json::from_str(&response_body)
             .map_err(|e| e.to_string())?;
 
-        let vulns = Self::parse_osv(response);
-        Ok(vulns)
+        let mut results = Vec::new();
+        for vuln in response.vulns {
+            results.extend(Self::parse_osv(vuln));
+        }
+
+        Ok(results)
     }
 
     pub fn fetch_all_ecosystems() -> Result<Vec<Vulnerability>, String> {
-        let mut all_vulns = Vec::new();
-
-        let ecosystems = [" crates", "npm", "pypi", "linux"];
-        let mut page = 1;
-
-        for ecosystem in ecosystems {
-
-            loop {
-                let query_with_page = json!({
-                    "ecosystem": ecosystem,
-                    "page": page
-                });
-
-                let response_body = match ureq::post("https://api.osv.dev/v1/query")
-                    .set("Content-Type", "application/json")
-                    .send_string(&query_with_page.to_string())
-                    .map_err(|e| e.to_string())?
-                    .into_string()
-                {
-                    Ok(s) => s,
-                    Err(_) => break,
-                };
-
-                let response: OsvVuln = match serde_json::from_str(&response_body) {
-                    Ok(v) => v,
-                    Err(_) => break,
-                };
-
-                let vulns = Self::parse_osv(response);
-                if vulns.is_empty() {
-                    break;
-                }
-                all_vulns.extend(vulns);
-                page += 1;
-            }
-            page = 1;
-        }
-
-        Ok(all_vulns)
+        Err("fetch_all_ecosystems is not supported; use fetch_data(pkg) for individual dependencies".into())
     }
 
     pub fn save_to_database(vulns: &[Vulnerability], db_path: &str) -> Result<(), String> {
@@ -91,8 +72,8 @@ impl OsvFetcher {
 
     fn map_ecosystem(source: &PackageSource) -> &'static str {
         match source {
-            PackageSource::CargoToml => "crates",
-            PackageSource::PyPI => "pypi",
+            PackageSource::CargoToml => "crates.io",
+            PackageSource::PyPI => "PyPI",
             PackageSource::Npm => "npm",
             PackageSource::System => "linux",
         }
@@ -139,35 +120,12 @@ impl OsvFetcher {
                     id: vuln.id.clone(),
                     package,
                     version_ranges,
-                    severity: Self::map_severity(&vuln.severity),
+                    severity: Severity::Medium,
                 });
             }
         }
 
         results
-    }
-
-    fn map_severity(osv_severity: &[OsvSeverity]) -> Severity {
-        // Choose the highest severity from the list
-        let highest = osv_severity.iter().fold(Severity::Medium, |acc, item| {
-            let sev = match item {
-                OsvSeverity::Critical => Severity::Critical,
-                OsvSeverity::High => Severity::High,
-                OsvSeverity::Medium => Severity::Medium,
-                OsvSeverity::Low => Severity::Low,
-            };
-
-            match (acc, sev) {
-                (Severity::Critical, _) => Severity::Critical,
-                (_, Severity::Critical) => Severity::Critical,
-                (Severity::High, _) => Severity::High,
-                (_, Severity::High) => Severity::High,
-                (Severity::Medium, other) => other,
-                (_, _) => Severity::Medium,
-            }
-        });
-
-        highest
     }
 }
 
@@ -175,20 +133,17 @@ impl OsvFetcher {
 // Typed OSV structs
 //
 
+// OsvQueryResponse is no longer used as a top-level public type, but keep this for compatibility.
 #[derive(Debug, Deserialize)]
-pub struct OsvVuln {
-    pub id: String,
-    pub severity: Vec<OsvSeverity>,
-    pub affected: Vec<OsvAffected>,
+pub struct OsvQueryResponse {
+    #[serde(default)]
+    pub vulns: Vec<OsvVuln>,
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum OsvSeverity {
-    Low,
-    Medium,
-    High,
-    Critical,
+pub struct OsvVuln {
+    pub id: String,
+    pub affected: Vec<OsvAffected>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -30,7 +30,7 @@ impl Scanner for PythonScanner {
             packages.push(Package {
                 name: name.to_string(),
                 version: version.to_string(),
-                source: PackageSource::System,
+                source: PackageSource::PyPI,
                 path: Some(path.into()),
             });
         }

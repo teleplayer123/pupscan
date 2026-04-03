@@ -38,7 +38,7 @@ impl NpmScanner {
                 packages.push(Package {
                     name: name.to_string(),
                     version,
-                    source: PackageSource::System,
+                    source: PackageSource::Npm,
                     path: Some(path.into()),
                 });
             }
