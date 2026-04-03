@@ -7,11 +7,11 @@ mod updater;
 use core::traits::{Matcher, Scanner};
 use core::types::{Package, PackageSource};
 use std::path::Path;
+use clap::{Parser, Subcommand};
 
 use scanner::{CargoScanner, NpmScanner, PythonScanner};
 use matcher::SimpleMatcher;
 use updater::{OsvFetcher, CacheManager};
-use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "pupscan")]
@@ -38,7 +38,14 @@ enum Commands {
         /// Package name
         package: String,
         /// Package version
+        #[arg(short, long, default_value = "*")]
         version: String,
+    },
+    /// View the local vulnerability cache
+    Cache {
+        /// Path to the local vulnerability cache file
+        #[arg(short, long, default_value = "vulns.json")]
+        cache_path: String,
     },
 }
 
@@ -64,7 +71,21 @@ fn main() {
     match cli.command {
         Commands::Scan { path, all_versions } => run_scan(&path, all_versions),
         Commands::Fetch { ecosystem, package, version } => run_fetch(&ecosystem, &package, &version),
+        Commands::Cache { cache_path } => view_cache(&cache_path),
     }
+}
+
+fn view_cache(cache_path: &str) {
+    let cache = CacheManager {
+        path: cache_path.into(),
+        max_age_secs: 60 * 60 * 24,
+    };
+    cache.load().map(|vulns| {
+        println!("Cached vulnerabilities:");
+        for vuln in vulns {
+            println!("  {}: {}", vuln.id, vuln.version_ranges.join(", "));
+        }
+    }).unwrap_or_else(|err| eprintln!("Failed to load cache: {}", err));
 }
 
 fn run_scan(input_path_str: &str, all_versions: bool) {

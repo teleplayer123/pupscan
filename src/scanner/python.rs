@@ -75,7 +75,27 @@ impl Scanner for PythonScanner {
                 }
             }
 
+            if let Some(requires) = toml_value.get("build-system").and_then(|b| b.get("requires")) {
+                if let Some(array) = requires.as_array() {
+                    for dep in array {
+                        if let Some(dep_str) = dep.as_str() {
+                            let (name, version) = parse_requirement(dep_str);
+                            packages.push(Package {
+                                name: name.to_string(),
+                                version: version.to_string(),
+                                source: PackageSource::PyPI,
+                                path: Some(path.into()),
+                            });
+                        }
+                    }
+                }
+            }
+
             return Ok(packages);
+        }
+
+        if !path.ends_with("requirements.txt") {
+            return Err("Unsupported file type. Only pyproject.toml and requirements.txt are supported.".to_string());
         }
 
         for line in content.lines() {

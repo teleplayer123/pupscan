@@ -51,10 +51,6 @@ impl OsvFetcher {
         Ok(results)
     }
 
-    pub fn fetch_all_ecosystems() -> Result<Vec<Vulnerability>, String> {
-        Err("fetch_all_ecosystems is not supported; use fetch_data(pkg) for individual dependencies".into())
-    }
-
     pub fn save_to_database(vulns: &[Vulnerability], db_path: &str) -> Result<(), String> {
         let store = JsonStore {
             path: db_path.to_string(),
@@ -75,7 +71,6 @@ impl OsvFetcher {
             PackageSource::CargoToml => "crates.io",
             PackageSource::PyPI => "PyPI",
             PackageSource::Npm => "npm",
-            PackageSource::System => "linux",
         }
     }
 
