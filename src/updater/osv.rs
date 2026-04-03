@@ -19,7 +19,8 @@ impl OsvFetcher {
         });
 
         let response: OsvVuln = ureq::post(url)
-            .send_json(&query)
+            .set("Content-Type", "application/json")
+            .send(&query.to_string())
             .map_err(|e| e.to_string())?
             .into_json()
             .map_err(|e| e.to_string())?;
@@ -46,7 +47,8 @@ impl OsvFetcher {
                 });
 
                 let response: OsvVuln = match ureq::post("https://api.osv.dev/v1/query")
-                    .send_json(&query_with_page)
+                    .set("Content-Type", "application/json")
+                    .send(&query_with_page.to_string())
                     .map_err(|e| e.to_string())?
                     .into_json()
                 {

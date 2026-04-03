@@ -22,10 +22,10 @@ fn main() {
     let vulns = if cache.is_stale() {
         println!("Updating vulnerability database...");
 
-        match OsvFetcher::fetch_rust_vulns() {
+        match OsvFetcher::fetch_all_ecosystems() {
             Ok(v) => {
-                if let Err(e) = cache.save(&v) {
-                    eprintln!("Cache save failed: {}", e);
+                if let Err(e) = OsvFetcher::save_to_database(v, "vulns.json") {
+                    eprintln!("Database save failed: {}", e);
                 }
                 v
             }
