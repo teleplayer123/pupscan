@@ -4,6 +4,7 @@ A tool to scan manifest and dependency files for a codebase and check for known 
 
 ### TODO:
 
+- Fix fetch_data for PyPI returns no results
 - Check if the path field in Package struct makes sense to keep
 - Implement post request query using purl for OSV
 - Implement support for CVE and NVD
