@@ -211,9 +211,9 @@ fn run_fetch(ecosystem_str: &str, package_name: &str, version: &str) {
         "crates.io" => PackageSource::CargoToml,
         "PyPI" => PackageSource::PyPI,
         "npm" => PackageSource::Npm,
-        "go" => PackageSource::Go,
+        "Go" => PackageSource::Go,
         _ => {
-            eprintln!("Unsupported ecosystem: {}. Supported: crates.io, PyPI, npm, go", ecosystem_str);
+            eprintln!("Unsupported ecosystem: {}. Supported: crates.io, PyPI, npm, Go", ecosystem_str);
             std::process::exit(1);
         }
     };
