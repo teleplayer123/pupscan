@@ -65,6 +65,7 @@ impl OsvFetcher {
             PackageSource::CargoToml => "crates.io",
             PackageSource::PyPI => "PyPI",
             PackageSource::Npm => "npm",
+            PackageSource::Go => "go",
         }
     }
 

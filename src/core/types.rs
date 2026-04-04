@@ -14,6 +14,7 @@ pub enum PackageSource {
     CargoToml,
     PyPI,
     Npm,
+    Go,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

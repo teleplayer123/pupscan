@@ -9,7 +9,7 @@ use core::types::{Package, PackageSource};
 use std::path::Path;
 use clap::{Parser, Subcommand};
 
-use scanner::{CargoScanner, NpmScanner, PythonScanner};
+use scanner::{CargoScanner, NpmScanner, PythonScanner, GoScanner};
 use matcher::SimpleMatcher;
 use updater::{OsvFetcher, CacheManager};
 
@@ -58,6 +58,7 @@ fn scanner_for_path(path: &Path) -> Vec<Box<dyn Scanner>> {
             "package.json" => scanners.push(Box::new(NpmScanner)),
             "requirements.txt" => scanners.push(Box::new(PythonScanner)),
             "pyproject.toml" => scanners.push(Box::new(PythonScanner)),
+            "go.mod" => scanners.push(Box::new(GoScanner)),
             _ => {}
         }
     }
@@ -98,7 +99,7 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
     let mut package_paths = Vec::new();
 
     if input_path.is_dir() {
-        let candidates = ["Cargo.toml", "package.json", "requirements.txt", "pyproject.toml"];
+        let candidates = ["Cargo.toml", "package.json", "requirements.txt", "pyproject.toml", "go.mod"];
         for cand in &candidates {
             let file = input_path.join(cand);
             if file.exists() {
@@ -210,8 +211,9 @@ fn run_fetch(ecosystem_str: &str, package_name: &str, version: &str) {
         "crates.io" => PackageSource::CargoToml,
         "PyPI" => PackageSource::PyPI,
         "npm" => PackageSource::Npm,
+        "go" => PackageSource::Go,
         _ => {
-            eprintln!("Unsupported ecosystem: {}. Supported: crates.io, PyPI, npm", ecosystem_str);
+            eprintln!("Unsupported ecosystem: {}. Supported: crates.io, PyPI, npm, go", ecosystem_str);
             std::process::exit(1);
         }
     };
