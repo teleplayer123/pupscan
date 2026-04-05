@@ -6,73 +6,51 @@ pub struct GoScanner;
 
 impl Scanner for GoScanner {
     fn scan(&self, path: &str) -> Result<Vec<Package>, String> {
-        let content = fs::read_to_string(path)
-            .map_err(|e| e.to_string())?;
+        let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
 
         let mut packages = Vec::new();
+        let mut in_require_block = false;
 
-        // Parse go.mod format
-        // Format: require (
-        //     package v1.2.3
-        // )
-        // Or single line: require package v1.2.3
+        for line in content.lines() {
+            let trimmed = line.trim();
 
-        let in_require = content
-            .lines()
-            .any(|line| line.trim() == "require");
-
-        if !in_require {
-            // Try to find require blocks with parentheses
-            let mut in_require_block = false;
-            for line in content.lines() {
-                let trimmed = line.trim();
-                if trimmed == "require" {
-                    in_require_block = true;
-                    continue;
-                }
-                if trimmed == "(" && in_require_block {
-                    continue;
-                }
-                if trimmed == ")" {
-                    in_require_block = false;
-                    continue;
-                }
-                if in_require_block {
-                    if let Some((name, version)) = parse_require_line(trimmed) {
-                        packages.push(Package {
-                            name,
-                            version,
-                            source: PackageSource::Go,
-                            path: Some(path.into()),
-                        });
-                    }
-                }
+            if trimmed.is_empty() || trimmed.starts_with("//") {
+                continue;
             }
-        } else {
-            // Parse multi-line require blocks
-            let mut in_require_block = false;
-            for line in content.lines() {
-                let trimmed = line.trim();
-                if trimmed == "require" {
-                    continue;
-                }
-                if trimmed == "(" {
-                    in_require_block = true;
-                    continue;
-                }
+
+            if in_require_block {
                 if trimmed == ")" {
                     in_require_block = false;
                     continue;
                 }
-                if in_require_block {
-                    if let Some((name, version)) = parse_require_line(trimmed) {
-                        packages.push(Package {
-                            name,
-                            version,
-                            source: PackageSource::Go,
-                            path: Some(path.into()),
-                        });
-                    }
+
+                if let Some((name, version)) = parse_require_line(trimmed) {
+                    packages.push(Package {
+                        name,
+                        version,
+                        source: PackageSource::Go,
+                        path: Some(path.into()),
+                    });
+                }
+
+                continue;
+            }
+
+            if let Some(rest) = trimmed.strip_prefix("require") {
+                let require_line = rest.trim();
+
+                if require_line == "(" {
+                    in_require_block = true;
+                    continue;
+                }
+
+                if let Some((name, version)) = parse_require_line(require_line) {
+                    packages.push(Package {
+                        name,
+                        version,
+                        source: PackageSource::Go,
+                        path: Some(path.into()),
+                    });
                 }
             }
         }
@@ -82,24 +60,28 @@ impl Scanner for GoScanner {
 }
 
 fn parse_require_line(line: &str) -> Option<(String, String)> {
-    let parts: Vec<&str> = line.split_whitespace().collect();
-    // Expected format: package_name v1.2.3
-    if parts.len() >= 2 && parts[0].starts_with('v') {
-        // Version only, skip
+    let trimmed_line = if let Some(index) = line.find("//") {
+        &line[..index]
+    } else {
+        line
+    }
+    .trim();
+
+    let parts: Vec<&str> = trimmed_line.split_whitespace().collect();
+    if parts.len() < 2 {
         return None;
     }
-    if parts.len() >= 2 && parts[0].starts_with("module") || parts[0].starts_with("go") {
-        // Module declaration or go version, skip
-        return None;
+
+    let name = parts[0];
+    let version = parts[1];
+
+    match name {
+        "module" | "go" | "replace" | "exclude" | "retract" | "tool" => return None,
+        _ => {}
     }
-    if parts.len() >= 2 {
-        let name = parts[0].to_string();
-        let version = parts[1].to_string();
-        if version.starts_with('v') {
-            Some((name, version))
-        } else {
-            None
-        }
+
+    if version.starts_with('v') {
+        Some((name.to_string(), version.to_string()))
     } else {
         None
     }
