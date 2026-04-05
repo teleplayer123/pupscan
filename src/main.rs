@@ -10,7 +10,7 @@ use std::path::Path;
 use clap::{Parser, Subcommand};
 
 use scanner::{CargoScanner, NpmScanner, PythonScanner, GoScanner};
-use matcher::SimpleMatcher;
+use matcher::EcosystemMatcher;
 use updater::{OsvFetcher, CacheManager};
 
 #[derive(Parser)]
@@ -55,6 +55,7 @@ fn scanner_for_path(path: &Path) -> Vec<Box<dyn Scanner>> {
     if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
         match file_name {
             "Cargo.toml" => scanners.push(Box::new(CargoScanner)),
+            "test.toml" => scanners.push(Box::new(CargoScanner)),
             "package.json" => scanners.push(Box::new(NpmScanner)),
             "requirements.txt" => scanners.push(Box::new(PythonScanner)),
             "pyproject.toml" => scanners.push(Box::new(PythonScanner)),
@@ -144,7 +145,18 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
         return;
     }
 
-    let mut all_vulns = Vec::new();
+    let cache = CacheManager {
+        path: "vulns.json".into(),
+        max_age_secs: 60 * 60 * 24,
+    };
+
+    let mut all_vulns = match cache.load() {
+        Ok(v) => v,
+        Err(_) => Vec::new(),
+    };
+
+    // Fetch fresh vulnerabilities for the packages being scanned
+    let mut fetched_vulns = Vec::new();
     if all_versions {
         // Collect unique packages by name and source, with version "*" to fetch all vulnerabilities
         let mut unique_packages = std::collections::HashMap::new();
@@ -158,32 +170,42 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
         }
         for pkg in &fetch_packages {
             match OsvFetcher::fetch_data(pkg) {
-                Ok(mut pkg_vulns) => all_vulns.append(&mut pkg_vulns),
+                Ok(mut pkg_vulns) => fetched_vulns.append(&mut pkg_vulns),
                 Err(err) => eprintln!("OSV fetch failed for {}: {}", pkg.name, err),
             }
         }
     } else {
+        // Collect unique packages by name and source, fetch all vulnerabilities for each
+        let mut unique_packages = std::collections::HashMap::new();
         for pkg in &packages {
+            let key = (pkg.name.clone(), pkg.source.clone());
+            unique_packages.entry(key).or_insert(pkg.clone());
+        }
+        let mut fetch_packages: Vec<Package> = unique_packages.into_values().collect();
+        for pkg in &mut fetch_packages {
+            pkg.version = "*".to_string();
+        }
+        for pkg in &fetch_packages {
             match OsvFetcher::fetch_data(pkg) {
-                Ok(mut pkg_vulns) => all_vulns.append(&mut pkg_vulns),
+                Ok(mut pkg_vulns) => fetched_vulns.append(&mut pkg_vulns),
                 Err(err) => eprintln!("OSV fetch failed for {}: {}", pkg.name, err),
             }
         }
     }
 
-    let cache = CacheManager {
-        path: "vulns.json".into(),
-        max_age_secs: 60 * 60 * 24,
-    };
+    // Merge fetched with existing
+    all_vulns.extend(fetched_vulns);
 
+    // Save merged vulnerabilities to cache
     if let Err(err) = cache.save(&all_vulns) {
         eprintln!("Failed to save vuln cache: {}", err);
     } else {
         println!("Saved {} vulnerabilities to cache", all_vulns.len());
     }
 
-    let matcher = SimpleMatcher;
+    let matcher = EcosystemMatcher;
     let findings = matcher.match_packages(&packages, &all_vulns);
+
 
     if findings.is_empty() {
         println!("No known vulnerabilities found ✅");

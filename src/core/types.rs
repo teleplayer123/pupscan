@@ -9,7 +9,7 @@ pub struct Package {
     pub path: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub enum PackageSource {
     CargoToml,
     PyPI,
@@ -23,6 +23,7 @@ pub struct Vulnerability {
     pub package: String,
     pub version_ranges: Vec<String>,
     pub severity: Severity,
+    pub source: Option<PackageSource>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

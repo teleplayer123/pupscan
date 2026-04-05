@@ -39,7 +39,7 @@ impl OsvFetcher {
 
         let mut results = Vec::new();
         for vuln in response.vulns {
-            results.extend(Self::parse_osv(vuln));
+            results.extend(Self::parse_osv(vuln, pkg.source.clone()));
         }
 
         Ok(results)
@@ -69,7 +69,7 @@ impl OsvFetcher {
         }
     }
 
-    fn parse_osv(vuln: OsvVuln) -> Vec<Vulnerability> {
+    fn parse_osv(vuln: OsvVuln, source: PackageSource) -> Vec<Vulnerability> {
         let mut results = Vec::new();
 
         for affected in vuln.affected {
@@ -111,6 +111,7 @@ impl OsvFetcher {
                     package,
                     version_ranges,
                     severity: Severity::Medium,
+                    source: Some(source.clone()),
                 });
             }
         }

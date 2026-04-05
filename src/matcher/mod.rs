@@ -1,3 +1,3 @@
-pub mod simple;
+pub mod ecosystem;
 
-pub use simple::SimpleMatcher;
+pub use ecosystem::EcosystemMatcher;
