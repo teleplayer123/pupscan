@@ -42,8 +42,10 @@ enum Commands {
         version: String,
     },
     // View the local vulnerability cache
-    Cache {
-        
+    Check {
+        // Path to scan for package manifests (file or directory)
+        #[arg(short, long, default_value = ".")]
+        scan_path: String,
         // Path to the local vulnerability cache file
         #[arg(short, long, default_value = "vulns.json")]
         cache_path: String,
@@ -75,12 +77,12 @@ fn main() {
     match cli.command {
         Commands::Scan { path, all_versions } => run_scan(&path, all_versions),
         Commands::Fetch { ecosystem, package, version } => run_fetch(&ecosystem, &package, &version),
-        Commands::Cache { cache_path } => view_cache(&cache_path),
+        Commands::Check { scan_path, cache_path } => check_cache(&scan_path, &cache_path),
         Commands::Update => run_update(),
     }
 }
 
-fn view_cache(cache_path: &str) {
+fn check_cache(scan_path: &str, cache_path: &str) {
     let cache = CacheManager {
         path: cache_path.into(),
         max_age_secs: 60 * 60 * 24,
@@ -93,7 +95,39 @@ fn view_cache(cache_path: &str) {
         }
     };
 
-    
+    let scanners = scanner_for_path(Path::new(scan_path));
+    if scanners.is_empty() {
+        eprintln!("No scanner available for path: {}", scan_path);
+        return;
+    }
+
+    let mut packages = Vec::new();
+    for scanner in scanners {
+        match scanner.scan(scan_path) {
+            Ok(mut found) => packages.append(&mut found),
+            Err(err) => eprintln!("Scanner failed on {}: {}", scan_path, err),
+        }
+    }
+    let matcher = EcosystemMatcher;
+    let findings = matcher.match_packages(&packages, &cached_vulns);
+    if findings.is_empty() {
+        println!("No known vulnerabilities found in cache for packages at {} ✅", scan_path);
+    } else {
+        println!("Found {} cached vulnerabilities for packages at {}:", findings.len(), scan_path);
+        for f in findings {
+            println!(
+                "[{:?}] {}@{} → {}",
+                f.vulnerability.severity,
+                f.package.name,
+                f.package.version,
+                f.vulnerability.id
+            );
+
+            if let Some(path) = &f.package.path {
+                println!("  Path: {:?}", path);
+            }
+        }
+    }
 }
 
 fn run_scan(input_path_str: &str, all_versions: bool) {
