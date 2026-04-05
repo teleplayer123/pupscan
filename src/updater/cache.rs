@@ -43,4 +43,32 @@ impl CacheManager {
         };
         store.load()
     }
+
+    /// Check if we should fetch new data for a package based on cached vulnerabilities
+    /// Returns true if we should fetch (no data or has unfixed vulnerabilities)
+    pub fn should_fetch_for_package(&self, cache: &[Vulnerability], pkg: &Package) -> bool {
+        let relevant_vulns: Vec<&Vulnerability> = cache
+            .iter()
+            .filter(|v| v.package == pkg.name && v.source == Some(pkg.source.clone()))
+            .collect();
+
+        if relevant_vulns.is_empty() {
+            return true; // No cached data, fetch
+        }
+
+        // Check if any vulnerability has an open range (no upper bound)
+        for vuln in relevant_vulns {
+            for range in &vuln.version_ranges {
+                if !has_upper_bound(range) {
+                    return true; // Has unfixed vulnerability, fetch for updates
+                }
+            }
+        }
+
+        false // All vulnerabilities appear fixed, don't fetch
+    }
+}
+
+fn has_upper_bound(range: &str) -> bool {
+    range.contains('<')
 }

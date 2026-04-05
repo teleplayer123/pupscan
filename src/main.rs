@@ -164,7 +164,10 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
             let key = (pkg.name.clone(), pkg.source.clone());
             unique_packages.entry(key).or_insert(pkg.clone());
         }
-        let mut fetch_packages: Vec<Package> = unique_packages.into_values().collect();
+        let mut fetch_packages: Vec<Package> = unique_packages
+            .into_values()
+            .filter(|pkg| cache.should_fetch_for_package(&all_vulns, pkg))
+            .collect();
         for pkg in &mut fetch_packages {
             pkg.version = "*".to_string();
         }
@@ -181,7 +184,10 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
             let key = (pkg.name.clone(), pkg.source.clone());
             unique_packages.entry(key).or_insert(pkg.clone());
         }
-        let mut fetch_packages: Vec<Package> = unique_packages.into_values().collect();
+        let mut fetch_packages: Vec<Package> = unique_packages
+            .into_values()
+            .filter(|pkg| cache.should_fetch_for_package(&all_vulns, pkg))
+            .collect();
         for pkg in &mut fetch_packages {
             pkg.version = "*".to_string();
         }
