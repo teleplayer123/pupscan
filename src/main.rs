@@ -23,31 +23,32 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Scan a package manifest file or directory for vulnerabilities
+    // Scan a package manifest file or directory for vulnerabilities
     Scan {
-        /// Path to the package manifest file or directory containing one
+        // Path to the package manifest file or directory containing one
         path: String,
-        /// Fetch vulnerabilities for all versions of packages, not just the specified versions
+        // Fetch vulnerabilities for all versions of packages, not just the specified versions
         #[arg(long)]
         all_versions: bool,
     },
-    /// Fetch OSV vulnerability data for a specific package and version
+    // Fetch OSV vulnerability data for a specific package and version
     Fetch {
-        /// Package ecosystem (crates.io, PyPI, npm)
+        // Package ecosystem (crates.io, PyPI, npm)
         ecosystem: String,
-        /// Package name
+        // Package name
         package: String,
-        /// Package version
+        // Package version
         #[arg(short, long, default_value = "*")]
         version: String,
     },
-    /// View the local vulnerability cache
+    // View the local vulnerability cache
     Cache {
-        /// Path to the local vulnerability cache file
+        
+        // Path to the local vulnerability cache file
         #[arg(short, long, default_value = "vulns.json")]
         cache_path: String,
     },
-    /// Update the vulnerability database if stale
+    // Update the vulnerability database if stale
     Update,
 }
 
@@ -84,12 +85,15 @@ fn view_cache(cache_path: &str) {
         path: cache_path.into(),
         max_age_secs: 60 * 60 * 24,
     };
-    cache.load().map(|vulns| {
-        println!("Cached vulnerabilities:");
-        for vuln in vulns {
-            println!("  {}: {}", vuln.id, vuln.version_ranges.join(", "));
+    let cached_vulns = match cache.load() {
+        Ok(v) => v,
+        Err(err) => {
+            eprintln!("Failed to load cache: {}", err);
+            return;
         }
-    }).unwrap_or_else(|err| eprintln!("Failed to load cache: {}", err));
+    };
+
+    
 }
 
 fn run_scan(input_path_str: &str, all_versions: bool) {

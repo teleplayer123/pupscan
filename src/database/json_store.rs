@@ -8,7 +8,7 @@ pub struct JsonStore {
 }
 
 impl JsonStore {
-    /// Load vulnerabilities from the store
+    // Load vulnerabilities from the store
     pub fn load(&self) -> Result<Vec<Vulnerability>, String> {
         match fs::read_to_string(&self.path) {
             Ok(data) => {
@@ -20,7 +20,7 @@ impl JsonStore {
         }
     }
 
-    /// Save vulnerabilities, merging with existing data if present
+    // Save vulnerabilities, merging with existing data if present
     pub fn save_merged(&self, vulns: &[Vulnerability]) -> Result<(), String> {
         // Load existing data
         let mut existing = self.load()?;
@@ -46,7 +46,7 @@ impl JsonStore {
         Ok(())
     }
 
-    /// Save vulnerabilities, completely replacing existing data
+    // Save vulnerabilities, completely replacing existing data
     pub fn save(&self, vulns: &[Vulnerability]) -> Result<(), String> {
         let tmp_path = format!("{}.tmp", self.path);
         let json = serde_json::to_string_pretty(vulns)

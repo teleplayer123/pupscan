@@ -20,7 +20,7 @@ impl CacheManager {
         true
     }
 
-    /// Save vulnerabilities while preserving existing data (non-destructive)
+    // Save vulnerabilities while preserving existing data (non-destructive)
     pub fn save(&self, vulns: &[Vulnerability]) -> Result<(), String> {
         let store = JsonStore {
             path: self.path.clone(),
@@ -28,7 +28,7 @@ impl CacheManager {
         store.save_merged(vulns)
     }
 
-    /// Save vulnerabilities, completely replacing existing data (destructive)
+    // Save vulnerabilities, completely replacing existing data (destructive)
     pub fn save_overwrite(&self, vulns: &[Vulnerability]) -> Result<(), String> {
         let store = JsonStore {
             path: self.path.clone(),
@@ -36,7 +36,7 @@ impl CacheManager {
         store.save(vulns)
     }
 
-    /// Load all vulnerabilities from cache
+    // Load all vulnerabilities from cache
     pub fn load(&self) -> Result<Vec<Vulnerability>, String> {
         let store = JsonStore {
             path: self.path.clone(),
@@ -44,8 +44,8 @@ impl CacheManager {
         store.load()
     }
 
-    /// Check if we should fetch new data for a package based on cached vulnerabilities
-    /// Returns true if we should fetch (no data or has unfixed vulnerabilities)
+    // Check if we should fetch new data for a package based on cached vulnerabilities
+    // Returns true if we should fetch (no data or has unfixed vulnerabilities)
     pub fn should_fetch_for_package(&self, cache: &[Vulnerability], pkg: &Package) -> bool {
         let relevant_vulns: Vec<&Vulnerability> = cache
             .iter()
