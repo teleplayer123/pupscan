@@ -57,7 +57,6 @@ fn scanner_for_path(path: &Path) -> Vec<Box<dyn Scanner>> {
     if let Some(file_name) = path.file_name().and_then(|s| s.to_str()) {
         match file_name {
             "Cargo.toml" => scanners.push(Box::new(CargoScanner)),
-            "test.toml" => scanners.push(Box::new(CargoScanner)),
             "package.json" => scanners.push(Box::new(NpmScanner)),
             "requirements.txt" => scanners.push(Box::new(PythonScanner)),
             "pyproject.toml" => scanners.push(Box::new(PythonScanner)),
