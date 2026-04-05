@@ -47,6 +47,8 @@ enum Commands {
         #[arg(short, long, default_value = "vulns.json")]
         cache_path: String,
     },
+    /// Update the vulnerability database if stale
+    Update,
 }
 
 fn scanner_for_path(path: &Path) -> Vec<Box<dyn Scanner>> {
@@ -74,6 +76,7 @@ fn main() {
         Commands::Scan { path, all_versions } => run_scan(&path, all_versions),
         Commands::Fetch { ecosystem, package, version } => run_fetch(&ecosystem, &package, &version),
         Commands::Cache { cache_path } => view_cache(&cache_path),
+        Commands::Update => run_update(),
     }
 }
 
@@ -199,6 +202,9 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
         }
     }
 
+    // Count new vulnerabilities fetched
+    let new_vulns_count = fetched_vulns.len();
+
     // Merge fetched with existing
     all_vulns.extend(fetched_vulns);
 
@@ -206,7 +212,7 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
     if let Err(err) = cache.save(&all_vulns) {
         eprintln!("Failed to save vuln cache: {}", err);
     } else {
-        println!("Saved {} vulnerabilities to cache", all_vulns.len());
+        println!("Saved {} vulnerabilities to cache with a total of {} entries", new_vulns_count, all_vulns.len());
     }
 
     let matcher = EcosystemMatcher;
@@ -231,6 +237,65 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
         if let Some(path) = &f.package.path {
             println!("  Path: {:?}", path);
         }
+    }
+}
+
+fn run_update() {
+    let cache = CacheManager {
+        path: "vulns.json".into(),
+        max_age_secs: 60 * 60 * 24,
+    };
+
+    if !cache.is_stale() {
+        println!("Database is up to date (less than 24 hours old). No update needed.");
+        return;
+    }
+
+    println!("Database is stale. Updating...");
+
+    let existing_vulns = match cache.load() {
+        Ok(v) => v,
+        Err(err) => {
+            eprintln!("Failed to load existing cache: {}", err);
+            return;
+        }
+    };
+
+    // Collect unique packages from existing vulnerabilities
+    let mut unique_packages = std::collections::HashMap::new();
+    for vuln in &existing_vulns {
+        if let Some(source) = &vuln.source {
+            let key = (vuln.package.clone(), source.clone());
+            unique_packages.entry(key).or_insert_with(|| Package {
+                name: vuln.package.clone(),
+                version: "*".to_string(),
+                source: source.clone(),
+                path: None,
+            });
+        }
+    }
+
+    let fetch_packages: Vec<Package> = unique_packages.into_values().collect();
+
+    if fetch_packages.is_empty() {
+        println!("No packages found in cache to update.");
+        return;
+    }
+
+    println!("Fetching updates for {} packages...", fetch_packages.len());
+
+    let mut updated_vulns = Vec::new();
+    for pkg in &fetch_packages {
+        match OsvFetcher::fetch_data(pkg) {
+            Ok(mut pkg_vulns) => updated_vulns.append(&mut pkg_vulns),
+            Err(err) => eprintln!("OSV fetch failed for {}: {}", pkg.name, err),
+        }
+    }
+
+    if let Err(err) = cache.save_overwrite(&updated_vulns) {
+        eprintln!("Failed to save updated cache: {}", err);
+    } else {
+        println!("Successfully updated database with {} vulnerabilities.", updated_vulns.len());
     }
 }
 
