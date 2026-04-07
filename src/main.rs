@@ -9,7 +9,7 @@ use core::types::{Package, PackageSource};
 use std::path::Path;
 use clap::{Parser, Subcommand};
 
-use scanner::{CargoScanner, NpmScanner, PythonScanner, GoScanner};
+use scanner::{CargoScanner, NpmScanner, PythonScanner, GoScanner, HomebrewScanner};
 use matcher::EcosystemMatcher;
 use updater::{OsvFetcher, CacheManager};
 
@@ -64,6 +64,7 @@ fn scanner_for_path(path: &Path) -> Vec<Box<dyn Scanner>> {
             "requirements.txt" => scanners.push(Box::new(PythonScanner)),
             "pyproject.toml" => scanners.push(Box::new(PythonScanner)),
             "go.mod" => scanners.push(Box::new(GoScanner)),
+            "Cellar" => scanners.push(Box::new(HomebrewScanner)),
             _ => {}
         }
     }
@@ -342,6 +343,7 @@ fn run_fetch(ecosystem_str: &str, package_name: &str, version: &str) {
         "PyPI" => PackageSource::PyPI,
         "npm" => PackageSource::Npm,
         "Go" => PackageSource::Go,
+        "Homebrew" => PackageSource::Homebrew,
         _ => {
             eprintln!("Unsupported ecosystem: {}. Supported: crates.io, PyPI, npm, Go", ecosystem_str);
             std::process::exit(1);
