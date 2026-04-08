@@ -11,8 +11,8 @@ impl Scanner for HomebrewScanner {
         if !metadata.is_dir() {
             return Err(format!("Path {} is not a directory", path));
         }
-        // TODO: Path could be different based on architecture, account for this in the future
-        // Homebrew stores packages and versions in /opt/homebrew/Cellar/<package>/<version>
+
+        // Homebrew stores packages and versions in homebrew/Cellar/<package>/<version>
         let mut packages = Vec::new();
         for entry in fs::read_dir(path).map_err(|e| e.to_string())? {
             let entry = entry.map_err(|e| e.to_string())?;
@@ -21,11 +21,12 @@ impl Scanner for HomebrewScanner {
                 for version_entry in fs::read_dir(entry.path()).map_err(|e| e.to_string())? {
                     let version_entry = version_entry.map_err(|e| e.to_string())?;
                     if version_entry.path().is_dir() {
+                        //println!("Found Homebrew package: {} version: {}", package_name, version_entry.path().display());
                         let version = version_entry.file_name().into_string().unwrap_or_default();
                         packages.push(Package {
                             name: package_name.clone(),
                             version,
-                            source: PackageSource::Homebrew,
+                            source: PackageSource::GIT,
                             path: Some(version_entry.path().to_str().unwrap_or_default().into()),
                         });
                     }

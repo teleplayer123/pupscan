@@ -66,7 +66,8 @@ impl OsvFetcher {
             PackageSource::PyPI => "PyPI",
             PackageSource::Npm => "npm",
             PackageSource::Go => "Go",
-            PackageSource::Homebrew => "GIT",
+            PackageSource::GIT => "GIT",
+            PackageSource::RubyGems => "RubyGems",
         }
     }
 

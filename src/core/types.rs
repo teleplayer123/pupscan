@@ -15,7 +15,8 @@ pub enum PackageSource {
     PyPI,
     Npm,
     Go,
-    Homebrew,
+    GIT,
+    RubyGems,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
