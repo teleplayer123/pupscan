@@ -12,6 +12,7 @@ impl Scanner for HomebrewScanner {
             return Err(format!("Path {} is not a directory", path));
         }
 
+        // TODO: instead we should find the sbom file for each package under homebrew/Cellar/<package>/<version> and parse as json
         // Homebrew stores packages and versions in homebrew/Cellar/<package>/<version>
         let mut packages = Vec::new();
         for entry in fs::read_dir(path).map_err(|e| e.to_string())? {
