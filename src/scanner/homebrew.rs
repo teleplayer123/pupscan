@@ -33,7 +33,6 @@ impl Scanner for HomebrewScanner {
             }
         }
 
-
         Ok(packages)
     }
 }

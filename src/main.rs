@@ -141,7 +141,7 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
     let mut package_paths = Vec::new();
 
     if input_path.is_dir() {
-        let candidates = ["Cargo.toml", "package.json", "requirements.txt", "pyproject.toml", "go.mod"];
+        let candidates = ["Cargo.toml", "package.json", "requirements.txt", "pyproject.toml", "go.mod", "Cellar"];
         for cand in &candidates {
             let file = input_path.join(cand);
             if file.exists() {
