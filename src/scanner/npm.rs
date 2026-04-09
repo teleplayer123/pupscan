@@ -40,6 +40,7 @@ impl NpmScanner {
                     version,
                     source: PackageSource::Npm,
                     path: Some(path.into()),
+                    purl: None,
                 });
             }
         }

@@ -26,6 +26,7 @@ impl Scanner for PythonScanner {
                                 version: version.to_string(),
                                 source: PackageSource::PyPI,
                                 path: Some(path.into()),
+                                purl: None,
                             });
                         }
                     }
@@ -50,6 +51,7 @@ impl Scanner for PythonScanner {
                             version: version.to_string(),
                             source: PackageSource::PyPI,
                             path: Some(path.into()),
+                            purl: None,
                         });
                     }
                 }
@@ -70,6 +72,7 @@ impl Scanner for PythonScanner {
                             version: version.to_string(),
                             source: PackageSource::PyPI,
                             path: Some(path.into()),
+                            purl: None,
                         });
                     }
                 }
@@ -85,6 +88,7 @@ impl Scanner for PythonScanner {
                                 version: version.to_string(),
                                 source: PackageSource::PyPI,
                                 path: Some(path.into()),
+                                purl: None,
                             });
                         }
                     }
@@ -113,6 +117,7 @@ impl Scanner for PythonScanner {
                 version: version.to_string(),
                 source: PackageSource::PyPI,
                 path: Some(path.into()),
+                purl: None,
             });
         }
 

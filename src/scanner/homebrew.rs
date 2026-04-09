@@ -1,5 +1,6 @@
 use crate::core::traits::Scanner;
 use crate::core::types::*;
+use crate::core::purl;
 use std::fs;
 
 pub struct HomebrewScanner;
@@ -24,12 +25,18 @@ impl Scanner for HomebrewScanner {
                     if version_entry.path().is_dir() {
                         //println!("Found Homebrew package: {} version: {}", package_name, version_entry.path().display());
                         let version = version_entry.file_name().into_string().unwrap_or_default();
-                        packages.push(Package {
+                        let pkg = Package {
                             name: package_name.clone(),
                             version,
                             source: PackageSource::GIT,
                             path: Some(version_entry.path().to_str().unwrap_or_default().into()),
-                        });
+                            purl: None,
+                        };
+                        let pkg_with_purl = Package {
+                            purl: purl::build_purl(&pkg),
+                            ..pkg
+                        };
+                        packages.push(pkg_with_purl);
                     }
                 }
             }
@@ -42,8 +49,7 @@ impl Scanner for HomebrewScanner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs::{self, File};
-    use std::io::Write;
+    use std::fs;
     use tempfile::tempdir;
 
     #[test]
@@ -74,5 +80,6 @@ mod tests {
         assert_eq!(packages.len(), 1);
         assert_eq!(packages[0].name, "test_package");
         assert_eq!(packages[0].version, "1.0.0");
+        assert_eq!(packages[0].purl, Some("pkg:generic/homebrew/test_package@1.0.0".to_string()));
     }
 }

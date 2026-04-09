@@ -30,6 +30,7 @@ impl Scanner for GoScanner {
                         version,
                         source: PackageSource::Go,
                         path: Some(path.into()),
+                        purl: None,
                     });
                 }
 
@@ -50,6 +51,7 @@ impl Scanner for GoScanner {
                         version,
                         source: PackageSource::Go,
                         path: Some(path.into()),
+                        purl: None,
                     });
                 }
             }

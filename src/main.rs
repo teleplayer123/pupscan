@@ -309,6 +309,7 @@ fn run_update() {
                 version: "*".to_string(),
                 source: source.clone(),
                 path: None,
+                purl: None,
             });
         }
     }
@@ -360,6 +361,7 @@ fn run_fetch(ecosystem_str: &str, package_name: &str, version: &str) {
         version: version.to_string(),
         source,
         path: None,
+        purl: None,
     };
 
     println!("Fetching OSV data for {}@{} in {}", package.name, package.version, ecosystem_str);

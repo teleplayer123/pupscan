@@ -7,6 +7,7 @@ pub struct Package {
     pub version: String,
     pub source: PackageSource,
     pub path: Option<PathBuf>,
+    pub purl: Option<String>,
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
