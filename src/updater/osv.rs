@@ -68,6 +68,7 @@ impl OsvFetcher {
             PackageSource::Go => "Go",
             PackageSource::GIT => "GIT",
             PackageSource::RubyGems => "RubyGems",
+            PackageSource::Homebrew => "brew",
         }
     }
 

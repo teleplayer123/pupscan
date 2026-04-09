@@ -344,7 +344,8 @@ fn run_fetch(ecosystem_str: &str, package_name: &str, version: &str) {
         "PyPI" => PackageSource::PyPI,
         "npm" => PackageSource::Npm,
         "Go" => PackageSource::Go,
-        "Homebrew" => PackageSource::GIT,
+        "GIT" => PackageSource::GIT,
+        "Homebrew" => PackageSource::Homebrew,
         _ => {
             eprintln!("Unsupported ecosystem: {}. Supported: crates.io, PyPI, npm, Go, Homebrew", ecosystem_str);
             std::process::exit(1);

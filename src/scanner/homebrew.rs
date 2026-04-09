@@ -28,7 +28,7 @@ impl Scanner for HomebrewScanner {
                         let pkg = Package {
                             name: package_name.clone(),
                             version,
-                            source: PackageSource::GIT,
+                            source: PackageSource::Homebrew,
                             path: Some(version_entry.path().to_str().unwrap_or_default().into()),
                             purl: None,
                         };
