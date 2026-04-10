@@ -34,6 +34,7 @@ impl Scanner for HomebrewScanner {
                         };
                         let pkg_with_purl = Package {
                             purl: purl::build_purl(&pkg),
+                            version: "".to_string(), // Empty string tells OSV to use PURL instead of name and version
                             ..pkg
                         };
                         packages.push(pkg_with_purl);

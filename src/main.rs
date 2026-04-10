@@ -229,9 +229,6 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
             .into_values()
             .filter(|pkg| cache.should_fetch_for_package(&all_vulns, pkg))
             .collect();
-        for pkg in &mut fetch_packages {
-            pkg.version = "*".to_string();
-        }
         for pkg in &fetch_packages {
             match OsvFetcher::fetch_data(pkg) {
                 Ok(mut pkg_vulns) => fetched_vulns.append(&mut pkg_vulns),

@@ -10,11 +10,10 @@ impl OsvFetcher {
         let ecosystem = Self::map_ecosystem(&pkg.source);
         let url = "https://api.osv.dev/v1/query";
 
-        let query = if pkg.version.is_empty() || pkg.version == "*" {
+        let query = if pkg.version.is_empty() {
             json!({
                 "package": {
-                    "name": pkg.name,
-                    "ecosystem": ecosystem
+                    "purl": pkg.purl
                 }
             })
         } else {
@@ -26,6 +25,8 @@ impl OsvFetcher {
                 }
             })
         };
+
+        println!("Query: {}", &query);
 
         let response_body = ureq::post(url)
             .set("Content-Type", "application/json")
