@@ -16,6 +16,13 @@ impl OsvFetcher {
                     "purl": pkg.purl
                 }
             })
+        } else if pkg.version == "*" {
+            json!({
+                "package": {
+                    "name": pkg.name,
+                    "ecosystem": ecosystem
+                }
+            })
         } else {
             json!({
                 "version": pkg.version,
