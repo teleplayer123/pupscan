@@ -10,7 +10,7 @@ impl OsvFetcher {
         let ecosystem = Self::map_ecosystem(&pkg.source);
         let url = "https://api.osv.dev/v1/query";
 
-        let query = if pkg.version.is_empty() {
+        let query = if !pkg.purl.is_none() {
             json!({
                 "package": {
                     "purl": pkg.purl
@@ -39,8 +39,6 @@ impl OsvFetcher {
             .map_err(|e| e.to_string())?
             .into_string()
             .map_err(|e| e.to_string())?;
-
-        println!("Query: {}", &query);
 
         let response: OsvQueryResponse = serde_json::from_str(&response_body)
             .map_err(|e| e.to_string())?;

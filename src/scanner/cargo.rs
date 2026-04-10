@@ -1,6 +1,5 @@
 use crate::core::traits::Scanner;
 use crate::core::types::*;
-use crate::core::purl;
 use std::fs;
 
 pub struct CargoScanner;
@@ -36,11 +35,7 @@ impl Scanner for CargoScanner {
                         path: Some(path.into()),
                         purl: None,
                     };
-                    let pkg_with_purl = Package {
-                        purl: purl::build_purl(&pkg),
-                        ..pkg
-                    };
-                    packages.push(pkg_with_purl);
+                    packages.push(pkg);
                 }
             }
         }
