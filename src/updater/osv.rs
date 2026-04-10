@@ -26,14 +26,14 @@ impl OsvFetcher {
             })
         };
 
-        println!("Query: {}", &query);
-
         let response_body = ureq::post(url)
             .set("Content-Type", "application/json")
             .send_string(&query.to_string())
             .map_err(|e| e.to_string())?
             .into_string()
             .map_err(|e| e.to_string())?;
+
+        println!("Query: {}", &query);
 
         let response: OsvQueryResponse = serde_json::from_str(&response_body)
             .map_err(|e| e.to_string())?;
