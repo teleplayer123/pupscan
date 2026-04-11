@@ -1,5 +1,6 @@
 use crate::core::traits::Scanner;
 use crate::core::types::*;
+use crate::core::purl::build_purl;
 use std::fs;
 
 pub struct PythonScanner;
@@ -110,15 +111,22 @@ impl Scanner for PythonScanner {
                 continue;
             }
 
-            let (name, version) = parse_requirement(line);
+            if let (name, version) = parse_requirement(line) {
+                let pkg = Package {
+                    name: name.to_string(),
+                    version: version.to_string(),
+                    source: PackageSource::PyPI,
+                    path: Some(path.into()),
+                    purl: None,
+                };
 
-            packages.push(Package {
-                name: name.to_string(),
-                version: version.to_string(),
-                source: PackageSource::PyPI,
-                path: Some(path.into()),
-                purl: None,
-            });
+                // Build purl for the package
+                let purl_pkg = Package {
+                    purl: build_purl(&pkg),
+                    ..pkg
+                };
+                packages.push(purl_pkg);
+            }
         }
 
         Ok(packages)
