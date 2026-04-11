@@ -111,22 +111,21 @@ impl Scanner for PythonScanner {
                 continue;
             }
 
-            if let (name, version) = parse_requirement(line) {
-                let pkg = Package {
-                    name: name.to_string(),
-                    version: version.to_string(),
-                    source: PackageSource::PyPI,
-                    path: Some(path.into()),
-                    purl: None,
-                };
+            let (name, version) = parse_requirement(line);
+            let pkg = Package {
+                name: name.to_string(),
+                version: version.to_string(),
+                source: PackageSource::PyPI,
+                path: Some(path.into()),
+                purl: None,
+            };
 
-                // Build purl for the package
-                let purl_pkg = Package {
-                    purl: build_purl(&pkg),
-                    ..pkg
-                };
-                packages.push(purl_pkg);
-            }
+            // Build purl for the package
+            let purl_pkg = Package {
+                purl: build_purl(&pkg),
+                ..pkg
+            };
+            packages.push(purl_pkg);
         }
 
         Ok(packages)
