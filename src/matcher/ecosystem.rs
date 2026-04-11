@@ -42,7 +42,6 @@ impl Matcher for EcosystemMatcher {
                 }
             }
         }
-
         findings
     }
 }

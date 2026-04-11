@@ -253,7 +253,6 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
     let matcher = EcosystemMatcher;
     let findings = matcher.match_packages(&packages, &all_vulns);
 
-
     if findings.is_empty() {
         println!("No known vulnerabilities found ✅");
         return;

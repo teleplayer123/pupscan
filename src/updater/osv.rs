@@ -36,7 +36,7 @@ impl OsvFetcher {
         let response: OsvQueryResponse = serde_json::from_str(&response_body)
             .map_err(|e| e.to_string())?;
 
-        println!("Response: {:?}", response);
+        //println!("Response: {:?}", &response);
 
         let mut results = Vec::new();
         for vuln in response.vulns {
