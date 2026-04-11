@@ -9,27 +9,20 @@ impl OsvFetcher {
     pub fn fetch_data(pkg: &Package) -> Result<Vec<Vulnerability>, String> {
         let ecosystem = Self::map_ecosystem(&pkg.source);
         let url = "https://api.osv.dev/v1/query";
-
+        
         let query = if !pkg.purl.is_none() {
             json!({
                 "package": {
                     "purl": pkg.purl
                 }
             })
-        } else if pkg.version == "*" {
-            json!({
-                "package": {
-                    "name": pkg.name,
-                    "ecosystem": ecosystem
-                }
-            })
         } else {
             json!({
-                "version": pkg.version,
                 "package": {
                     "name": pkg.name,
                     "ecosystem": ecosystem
-                }
+                },
+                "version": pkg.version
             })
         };
 
@@ -74,7 +67,6 @@ impl OsvFetcher {
             PackageSource::Go => "Go",
             PackageSource::GIT => "GIT",
             PackageSource::RubyGems => "RubyGems",
-            PackageSource::Homebrew => "brew",
         }
     }
 

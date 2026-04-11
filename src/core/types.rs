@@ -18,7 +18,6 @@ pub enum PackageSource {
     Go,
     GIT,
     RubyGems,
-    Homebrew,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

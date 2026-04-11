@@ -1,7 +1,7 @@
 use crate::core::traits::Scanner;
 use crate::core::types::*;
-use crate::core::purl;
 use std::fs;
+use regex::Regex;
 
 pub struct HomebrewScanner;
 
@@ -13,7 +13,6 @@ impl Scanner for HomebrewScanner {
             return Err(format!("Path {} is not a directory", path));
         }
 
-        // TODO: instead we should find the sbom file for each package under homebrew/Cellar/<package>/<version> and parse as json
         // Homebrew stores packages and versions in homebrew/Cellar/<package>/<version>
         let mut packages = Vec::new();
         for entry in fs::read_dir(path).map_err(|e| e.to_string())? {
@@ -23,20 +22,19 @@ impl Scanner for HomebrewScanner {
                 for version_entry in fs::read_dir(entry.path()).map_err(|e| e.to_string())? {
                     let version_entry = version_entry.map_err(|e| e.to_string())?;
                     if version_entry.path().is_dir() {
-                        //println!("Found Homebrew package: {} version: {}", package_name, version_entry.path().display());
+                        //println!("Found Homebrew package: {}", version_entry.path().display());
+                        let sbom_path = version_entry.path().join("sbom.spdx.json");
+                        let github_url = find_github_url(sbom_path.to_str().unwrap_or_default());
+                        //println!("Found github url: {:?}", &github_url.as_ref().unwrap_or(&"None".to_string()));
                         let version = version_entry.file_name().into_string().unwrap_or_default();
                         let pkg = Package {
-                            name: package_name.clone(),
+                            name: github_url.unwrap_or_else(|| package_name.clone()).to_string(),
                             version,
-                            source: PackageSource::Homebrew,
+                            source: PackageSource::GIT,
                             path: Some(version_entry.path().to_str().unwrap_or_default().into()),
                             purl: None,
                         };
-                        let pkg_with_purl = Package {
-                            purl: purl::build_purl(&pkg),
-                            ..pkg
-                        };
-                        packages.push(pkg_with_purl);
+                        packages.push(pkg);
                     }
                 }
             }
@@ -44,6 +42,29 @@ impl Scanner for HomebrewScanner {
 
         Ok(packages)
     }
+}
+
+fn find_github_url(sbom_path: &str) -> Option<String> {
+    // Search for github url in the sbom file
+    let sbom_content = fs::read_to_string(sbom_path).unwrap_or_default();
+    // Look in packages -> downloadLocation for github url
+    let sbom_json: serde_json::Value = serde_json::from_str(&sbom_content).unwrap_or_default();
+    if let Some(packages) = sbom_json.get("packages").and_then(|p| p.as_array()) {
+        for package in packages {
+            if let Some(download_location) = package.get("downloadLocation").and_then(|d| d.as_str()) {
+                if download_location.contains("github.com") {
+                    // Regex to extract https://github.com/owner/repo from download location
+                    let re = Regex::new(r"https://github\.com/[^/\s]+/[^/\s]+").unwrap();
+                    if let Some(caps) = re.captures(download_location) {
+                        // Add .git suffix to the end of the url
+                        let github_url = format!("{}.git", caps.get(0).unwrap().as_str());
+                        return Some(github_url);
+                    }
+                }
+            }
+        }
+    }
+    None
 }
 
 #[cfg(test)]

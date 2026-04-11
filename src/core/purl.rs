@@ -10,7 +10,6 @@ pub fn build_purl(pkg: &Package) -> Option<String> {
         PackageSource::Go => Some(format!("pkg:golang/{}@{}", pkg.name, pkg.version)),
         PackageSource::GIT => Some(format!("pkg:git/{}@{}", pkg.name, pkg.version)),
         PackageSource::RubyGems => Some(format!("pkg:gem/{}@{}", pkg.name, pkg.version)),
-        PackageSource::Homebrew => Some(format!("pkg:brew/{}@{}", pkg.name, pkg.version)),
     }
 }
 
