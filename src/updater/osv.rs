@@ -82,7 +82,7 @@ impl OsvFetcher {
 
             if let Some(ranges) = affected.ranges {
                 for range in ranges {
-                    if range.range_type != "SEMVER" && range.range_type != "ECOSYSTEM" {
+                    if range.range_type != "SEMVER" && range.range_type != "ECOSYSTEM" && range.range_type != "GIT" {
                         continue;
                     }
 
