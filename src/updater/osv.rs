@@ -90,6 +90,7 @@ impl OsvFetcher {
                         }
                         "GIT" => {
                             version_ranges.extend(Self::collect_version_ranges(&range.events, |value| {
+                                // normalize function parameter to resolve git commits to tags when possible
                                 if value.starts_with('v') || value.contains('.') {
                                     Some(value.to_string())
                                 } else {
