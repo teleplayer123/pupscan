@@ -2,6 +2,7 @@ use crate::core::types::*;
 use crate::database::json_store::JsonStore;
 use serde::Deserialize;
 use serde_json::json;
+use std::process::Command;
 
 pub struct OsvFetcher;
 
@@ -36,11 +37,11 @@ impl OsvFetcher {
         let response: OsvQueryResponse = serde_json::from_str(&response_body)
             .map_err(|e| e.to_string())?;
 
-        //println!("Response: {:?}", &response);
+        println!("Response: {:?}", &response);
 
         let mut results = Vec::new();
         for vuln in response.vulns {
-            results.extend(Self::parse_osv(vuln, pkg.source.clone()));
+            results.extend(Self::parse_osv(vuln, pkg.source.clone(), pkg.purl.clone()));
         }
 
         Ok(results)
@@ -72,7 +73,7 @@ impl OsvFetcher {
         }
     }
 
-    fn parse_osv(vuln: OsvVuln, source: PackageSource) -> Vec<Vulnerability> {
+    fn parse_osv(vuln: OsvVuln, source: PackageSource, purl: Option<String>) -> Vec<Vulnerability> {
         let mut results = Vec::new();
 
         for affected in vuln.affected {
@@ -82,28 +83,61 @@ impl OsvFetcher {
 
             if let Some(ranges) = affected.ranges {
                 for range in ranges {
-                    if range.range_type != "SEMVER" && range.range_type != "ECOSYSTEM" && range.range_type != "GIT" {
-                        continue; // Skip unsupported range types
-                    }
+                    if range.range_type == "SEMVER" || range.range_type == "ECOSYSTEM" {
+                        let mut current_start: Option<String> = None;
 
-                    let mut current_start: Option<String> = None;
-
-                    for event in range.events {
-                        if let Some(introduced) = event.introduced {
-                            current_start = Some(introduced);
-                        }
-
-                        if let Some(fixed) = event.fixed {
-                            if let Some(start) = &current_start {
-                                version_ranges.push(format!(">={}, <{}", start, fixed));
+                        for event in range.events {
+                            if let Some(introduced) = event.introduced.clone() {
+                                current_start = Some(introduced);
                             }
-                            current_start = None;
-                        }
-                    }
 
-                    // Still vulnerable (no fix yet)
-                    if let Some(start) = current_start {
-                        version_ranges.push(format!(">={}", start));
+                            if let Some(fixed) = event.fixed.clone() {
+                                if let Some(start) = &current_start {
+                                    version_ranges.push(format!(">={}, <{}", start, fixed));
+                                }
+                                current_start = None;
+                            }
+                        }
+
+                        // Still vulnerable (no fix yet)
+                        if let Some(start) = current_start {
+                            version_ranges.push(format!(">={}", start));
+                        }
+
+                    } else if range.range_type == "GIT" {
+                        // Attempt to resolve commit hashes to tags (semver) when possible
+                        let mut current_start: Option<String> = None;
+
+                        for event in range.events {
+                            if let Some(introduced) = event.introduced.clone() {
+                                // If looks like a tag/version, keep; otherwise try to resolve via repo tags
+                                if introduced.starts_with('v') || introduced.contains('.') {
+                                    current_start = Some(introduced);
+                                } else {
+                                    if let Some(tag) = Self::resolve_commit_to_tag(&introduced, &purl) {
+                                        current_start = Some(tag);
+                                    }
+                                }
+                            }
+
+                            if let Some(fixed) = event.fixed.clone() {
+                                let fixed_version = if fixed.starts_with('v') || fixed.contains('.') {
+                                    Some(fixed)
+                                } else {
+                                    Self::resolve_commit_to_tag(&fixed, &purl)
+                                };
+
+                                if let (Some(start), Some(fv)) = (&current_start, fixed_version) {
+                                    version_ranges.push(format!(">={}, <{}", start, fv));
+                                }
+                                current_start = None;
+                            }
+                        }
+
+                        // Still vulnerable (no fix yet)
+                        if let Some(start) = current_start {
+                            version_ranges.push(format!(">={}", start));
+                        }
                     }
                 }
             }
@@ -121,7 +155,63 @@ impl OsvFetcher {
 
         results
     }
+
+    fn resolve_commit_to_tag(commit: &str, purl: &Option<String>) -> Option<String> {
+        // Only attempt resolution when we have a pkg:git purl
+        let purl = purl.as_ref()?;
+        if !purl.starts_with("pkg:git/") {
+            return None;
+        }
+
+        let repo_part = purl.trim_start_matches("pkg:git/").split('@').next()?;
+        let repo_url = if repo_part.ends_with(".git") {
+            format!("https://{}", repo_part)
+        } else {
+            format!("https://{}.git", repo_part)
+        };
+
+        let output = Command::new("git")
+            .arg("ls-remote")
+            .arg("--tags")
+            .arg(&repo_url)
+            .output()
+            .ok()?;
+
+        if !output.status.success() {
+            return None;
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut tag_map = std::collections::HashMap::new();
+
+        for line in stdout.lines() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() < 2 {
+                continue;
+            }
+            let hash = parts[0];
+            let refname = parts[1];
+
+            if refname.ends_with("^{}") {
+                let tag = refname.trim_start_matches("refs/tags/").trim_end_matches("^{}");
+                tag_map.insert(tag.to_string(), hash.to_string());
+            } else if refname.starts_with("refs/tags/") {
+                let tag = refname.trim_start_matches("refs/tags/");
+                tag_map.entry(tag.to_string()).or_insert_with(|| hash.to_string());
+            }
+        }
+
+        // Try to match by prefix (OSV may shorten commits)
+        for (tag, h) in tag_map {
+            if h == commit || h.starts_with(commit) || commit.starts_with(&h) || h.starts_with(&commit[..std::cmp::min(commit.len(), 7)]) {
+                return Some(tag);
+            }
+        }
+
+        None
+    }
 }
+
 
 //
 // Typed OSV structs
