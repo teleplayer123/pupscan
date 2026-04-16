@@ -34,11 +34,13 @@ impl OsvFetcher {
             .into_string()
             .map_err(|e| e.to_string())?;
 
+        // Uncomment for debugging
         //println!("Response Body: {:?}", &response_body);
 
         let response: OsvQueryResponse = serde_json::from_str(&response_body)
             .map_err(|e| e.to_string())?;
 
+        // Uncomment for debugging
         //println!("Response: {:?}", &response);
 
         let mut results = Vec::new();
