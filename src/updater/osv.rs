@@ -85,6 +85,7 @@ impl OsvFetcher {
                     match range.range_type.as_str() {
                         "SEMVER" | "ECOSYSTEM" => {
                             version_ranges.extend(Self::collect_version_ranges(&range.events, |_value| {
+                                // normalize function parameter is not needed for SEMVER/ECOSYSTEM as OSV should already provide normalized versions
                                 Some(_value.to_string())
                             }));
                         }
