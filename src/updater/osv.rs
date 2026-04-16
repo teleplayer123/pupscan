@@ -116,6 +116,7 @@ impl OsvFetcher {
         results
     }
 
+    // normalize parameter takes a function that converts a version string to a normalized format
     fn collect_version_ranges<F>(events: &[OsvEvent], mut normalize: F) -> Vec<String>
     where
         F: FnMut(&str) -> Option<String>,
