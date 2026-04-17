@@ -1,5 +1,6 @@
 use crate::core::types::*;
 use crate::database::json_store::JsonStore;
+use crate::core::purl::build_purl;
 use serde::Deserialize;
 use serde_json::json;
 use std::process::Command;
@@ -43,9 +44,11 @@ impl OsvFetcher {
         // Uncomment for debugging
         //println!("Response: {:?}", &response);
 
+        let purl = pkg.purl.clone().or_else(|| build_purl(pkg));
+
         let mut results = Vec::new();
         for vuln in response.vulns {
-            results.extend(Self::parse_osv(vuln, pkg.source.clone(), pkg.purl.clone()));
+            results.extend(Self::parse_osv(vuln, pkg.source.clone(), purl.clone()));
         }
 
         Ok(results)
@@ -211,7 +214,8 @@ impl OsvFetcher {
             return None;
         }
 
-        let repo_part = purl.trim_start_matches("pkg:git/").split('@').next()?;
+        let mut repo_part = purl.trim_start_matches("pkg:git/").split('@').next()?;
+        repo_part = repo_part.trim_start_matches("https://");
         let repo_url = if repo_part.ends_with(".git") {
             format!("https://{}", repo_part)
         } else {
