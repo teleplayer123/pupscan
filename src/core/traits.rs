@@ -12,6 +12,7 @@ pub trait Matcher {
     ) -> Vec<Finding>;
 }
 
+#[allow(dead_code)]
 pub trait VulnerabilityStore {
     fn load(&self) -> Result<Vec<Vulnerability>, String>;
 }

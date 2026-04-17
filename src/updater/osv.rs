@@ -51,6 +51,7 @@ impl OsvFetcher {
         Ok(results)
     }
 
+    #[allow(dead_code)]
     pub fn save_to_database(vulns: &[Vulnerability], db_path: &str) -> Result<(), String> {
         let store = JsonStore {
             path: db_path.to_string(),
