@@ -22,10 +22,16 @@ $ pupscan scan requirements.txt
 
 ### Update
 
-Update database if stale:
+Update database if it has been at least 24 hours since the last update:
 
 ``` 
 $ pupscan update
+```
+
+Force update despite last update time:
+
+```
+$ pupscan update --force
 ```
 
 ### Fetch

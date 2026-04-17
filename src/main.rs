@@ -51,7 +51,10 @@ enum Commands {
         cache_path: String,
     },
     // Update the vulnerability database if stale
-    Update,
+    Update {
+        #[arg(short, long, default_value_t = false)]
+        force: bool,
+    },
 }
 
 fn scanner_for_path(path: &Path) -> Vec<Box<dyn Scanner>> {
@@ -81,7 +84,7 @@ fn main() {
         Commands::Scan { path, all_versions } => run_scan(&path, all_versions),
         Commands::Fetch { ecosystem, package, version } => run_fetch(&ecosystem, &package, &version),
         Commands::Check { scan_path, cache_path } => check_cache(&scan_path, &cache_path),
-        Commands::Update => run_update(),
+        Commands::Update { force } => run_update(force),
     }
 }
 
@@ -276,15 +279,17 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
     }
 }
 
-fn run_update() {
+fn run_update(force: bool) {
     let cache = CacheManager {
         path: "vulns.json".into(),
         max_age_secs: 60 * 60 * 24,
     };
 
     if !cache.is_stale() {
-        println!("Database is up to date (less than 24 hours old). No update needed.");
-        return;
+        if !force {
+            println!("Database is up to date (less than 24 hours old). No update needed.");
+            return;
+        }
     }
 
     println!("Database is stale. Updating...");
