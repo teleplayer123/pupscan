@@ -334,7 +334,7 @@ fn run_update(force: bool) {
         }
     }
 
-    if let Err(err) = cache.save_overwrite(&updated_vulns) {
+    if let Err(err) = cache.save(&updated_vulns) {
         eprintln!("Failed to save updated cache: {}", err);
     } else {
         println!("Successfully updated database with {} vulnerabilities.", updated_vulns.len());
