@@ -8,6 +8,7 @@ use std::process::Command;
 pub struct OsvFetcher;
 
 impl OsvFetcher {
+    // Retuns a list of Vulnerabilities or an error string
     pub fn fetch_data(pkg: &Package) -> Result<Vec<Vulnerability>, String> {
         let ecosystem = Self::map_ecosystem(&pkg.source);
         let url = "https://api.osv.dev/v1/query";
