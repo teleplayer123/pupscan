@@ -28,6 +28,7 @@ impl CacheManager {
         store.save_merged(vulns)
     }
 
+    #[allow(dead_code)]
     // Save vulnerabilities, completely replacing existing data (destructive)
     pub fn save_overwrite(&self, vulns: &[Vulnerability]) -> Result<(), String> {
         let store = JsonStore {

@@ -46,6 +46,7 @@ impl JsonStore {
         Ok(())
     }
 
+    #[allow(dead_code)]
     // Save vulnerabilities, completely replacing existing data
     pub fn save(&self, vulns: &[Vulnerability]) -> Result<(), String> {
         let tmp_path = format!("{}.tmp", self.path);
