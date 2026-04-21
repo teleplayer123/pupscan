@@ -12,3 +12,4 @@ semver = "1"
 clap = { version = "4.0", features = ["derive"] }
 tempfile = "3.8"
 regex = "1.12.3"
+chrono = "0.4"

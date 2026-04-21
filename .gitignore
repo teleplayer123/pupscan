@@ -6,3 +6,4 @@ go.mod
 test.toml
 requirements.txt
 sample.txt
+pupscan.log
