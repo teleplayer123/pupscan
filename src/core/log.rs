@@ -25,7 +25,6 @@ impl Level {
     }
 }
 
-
 // Thread safe logger
 struct Logger {
     file_path: String,
@@ -83,7 +82,6 @@ impl Logger {
         }
     }
 }
-
 
 // --- Public Interface & Global Access ---
 
