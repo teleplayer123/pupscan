@@ -6,6 +6,7 @@ mod updater;
 
 use core::traits::{Matcher, Scanner};
 use core::types::{Package, PackageSource};
+use core::log::{log_message, initialize_logger, Level};
 use std::path::Path;
 use clap::{Parser, Subcommand};
 
@@ -79,6 +80,8 @@ fn scanner_for_path(path: &Path) -> Vec<Box<dyn Scanner>> {
 
 fn main() {
     let cli = Cli::parse();
+    let _ = initialize_logger();
+    log_message(Level::Info, &"MAIN".to_string(), &"Logger initialized!".to_string());
 
     match cli.command {
         Commands::Scan { path, all_versions } => run_scan(&path, all_versions),

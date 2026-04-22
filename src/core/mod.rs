@@ -1,4 +1,4 @@
 pub mod types;
 pub mod traits;
 pub mod purl;
-pub mod logger;
+pub mod log;

@@ -1,7 +1,7 @@
 use crate::core::types::*;
 use crate::database::json_store::JsonStore;
 use crate::core::purl::build_purl;
-use crate::core::logger::Logger;
+use crate::core::log::{log_message, Level};
 use serde::Deserialize;
 use serde_json::json;
 use std::process::Command;
@@ -13,7 +13,6 @@ pub struct OsvFetcher;
 impl OsvFetcher {
     // Retuns a list of Vulnerabilities or an error string
     pub fn fetch_data(pkg: &Package) -> Result<Vec<Vulnerability>, String> {
-        let logger = Logger { file_path: "pupscan.log".to_string() };
         let ecosystem = Self::map_ecosystem(&pkg.source);
         let url = "https://api.osv.dev/v1/query";
         
@@ -42,14 +41,14 @@ impl OsvFetcher {
 
         // Uncomment for debugging
         //println!("Response Body: {:?}", &response_body);
-        logger.log_info(&format!("Response Raw -> {:?}", &response_body));
+        log_message(Level::Info, "OSV", &format!("Response Raw -> {:?}", &response_body));
 
         let response: OsvQueryResponse = serde_json::from_str(&response_body)
             .map_err(|e| e.to_string())?;
 
         // Uncomment for debugging
         //println!("Response: {:?}", &response);
-        logger.log_info(&format!("Response -> {:?}", &response));
+        log_message(Level::Info, "OSV", &format!("Response -> {:?}", &response));
 
         let purl = pkg.purl.clone().or_else(|| build_purl(pkg));
 
@@ -221,8 +220,6 @@ impl OsvFetcher {
             return None;
         }
 
-        let logger = Logger { file_path: "pupscan.log".to_string() };
-
         let mut repo_part = purl.trim_start_matches("pkg:git/").split('@').next()?;
         repo_part = repo_part.trim_start_matches("https://");
         let repo_url = if repo_part.ends_with(".git") {
@@ -262,12 +259,12 @@ impl OsvFetcher {
             }
         }
 
-        logger.log_debug(&format!("Searching for version that maps to commit {} for Repo URL {}", &commit, &repo_url));
+        log_message(Level::Info, &"OSV".to_string(), &format!("Searching for version that maps to commit {} for Repo URL {}", &commit, &repo_url));
         // Try to match by prefix
         for (tag, h) in tag_map {
-            logger.log_debug(&format!("Trying to match vuln commit {} to found commit {} for PURL: {}", &commit, &h, &purl));
+            log_message(Level::Debug, &"OSV".to_string(), &format!("Trying to match vuln commit {} to found commit {} for PURL: {}", &commit, &h, &purl));
             if h == commit || h.starts_with(commit) || commit.starts_with(&h) || h.starts_with(&commit[..std::cmp::min(commit.len(), 7)]) {
-                logger.log_info(&format!("Matched vuln commit {} to version {} for PURL {}", &h, &tag, &purl));
+                log_message(Level::Info, &"OSV".to_string(), &format!("Matched vuln commit {} to version {} for PURL {}", &h, &tag, &purl));
                 return Some(tag);
             }
         }

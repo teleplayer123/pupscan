@@ -1,9 +1,9 @@
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
-use std::time::SystemTime;
+use chrono::Local;
 
-/// Defines the severity level of a log message.
+// Defines the severity level of a log message
 #[derive(Debug, PartialEq, PartialOrd, Eq, Clone, Copy)]
 pub enum Level {
     Error,
@@ -14,7 +14,6 @@ pub enum Level {
 }
 
 impl Level {
-    /// Converts the level to a printable string.
     fn as_str(&self) -> &'static str {
         match self {
             Level::Error => "ERROR",
@@ -26,18 +25,16 @@ impl Level {
     }
 }
 
-// --- Global State Management ---
 
-/// The state object that holds the file handle (or a mechanism to open it).
-/// It must be thread-safe, hence the Mutex.
+// Thread safe logger
 struct Logger {
     file_path: String,
-    /// The mutex guards access to the underlying file writing logic.
+    // The mutex guards access to the underlying file writing logic
     inner: Mutex<Option<std::fs::File>>,
 }
 
 impl Logger {
-    /// Creates a new Logger instance.
+    // Singleton
     fn new(file_path: &str) -> Self {
         Logger {
             file_path: file_path.to_string(),
@@ -45,10 +42,9 @@ impl Logger {
         }
     }
 
-    /// Initializes the logger, ensuring the file is opened/created.
-    /// This must be called once at program startup.
+
+    // This must be called once at program startup
     fn init(&self) -> io::Result<()> {
-        // Open or create the file in append mode.
         let file = OpenOptions::new()
             .create(true)
             .append(true)
@@ -60,19 +56,15 @@ impl Logger {
         Ok(())
     }
 
-    /// Core function to write the formatted message to the file.
+    // Core logging function
     fn log(&self, level: Level, module: &str, message: &str) {
-        let timestamp = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .map(|d| format!("{}", d.as_secs()))
-            .unwrap_or_default();
+        // Get current local time
+        let now = Local::now();
+        // Use strftime-like formatting
+        let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
 
         // Format the log entry: [Timestamp] [LEVEL] [Module] Message
-        let log_entry = format!("[{}] [{:^5}] [{}]: {}\n",
-                                timestamp,
-                                level.as_str(),
-                                module,
-                                message);
+        let log_entry = format!("[{}] [{:^5}] [{}]: {}\n", timestamp, level.as_str(), module, message);
 
         // Lock the mutex before writing
         let mut file_guard = self.inner.lock().unwrap();
@@ -95,15 +87,13 @@ impl Logger {
 
 // --- Public Interface & Global Access ---
 
-/// A globally accessible, thread-safe logger instance.
-/// This simulates the initialization of a global logger context.
+// Globally accessible, thread-safe logger instance.
 static LOGGER: once_cell::sync::Lazy<Arc<Logger>> = once_cell::sync::Lazy::new(|| {
-    Arc::new(Logger::new("app.log"))
+    Arc::new(Logger::new("pupscan.log"))
 });
 
 
-/// Initializes the logger by opening the file handle.
-/// Must be called once at the beginning of the application.
+// Must be called once at the beginning of the application
 pub fn initialize_logger() -> Result<(), String> {
     match LOGGER.init() {
         Ok(_) => Ok(()),
@@ -111,14 +101,7 @@ pub fn initialize_logger() -> Result<(), String> {
     }
 }
 
-/// Helper macro to dispatch the logging logic (simulates the `log` crate facade).
-/// Because we are simulating a macro, we use a function that mimics the behavior.
-/// This function is the gateway used by other modules.
+// Helper macro to be used across modules
 pub fn log_message(level: Level, module: &str, message: &str) {
-    // In a real logger, you might check a global minimum level here.
-    // For simplicity, we log everything for this example.
     LOGGER.log(level, module, message);
 }
-
-// We must include `once_cell` for the lazy static initialization.
-// Add `once_cell = "1.18"` to your Cargo.toml
