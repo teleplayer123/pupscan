@@ -1,9 +1,10 @@
-use std::fs::{self, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use chrono::Local;
 
 // Defines the severity level of a log message
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, PartialOrd, Eq, Clone, Copy)]
 pub enum Level {
     Error,
