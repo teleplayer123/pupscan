@@ -259,7 +259,7 @@ impl OsvFetcher {
         }
 
         log_message(Level::Debug, &"OSV".to_string(), &format!("Searching for version that maps to commit {} for Repo URL {}", &commit, &repo_url));
-        // Try to match by prefix
+        // Try to match by prefix or local package version
         for (tag, h) in tag_map {
             log_message(Level::Debug, &"OSV".to_string(), &format!("Trying to match vuln commit {} to found commit {} for PURL: {}", &commit, &h, &purl));
             if h == commit || h.starts_with(commit) || commit.starts_with(&h) || h.starts_with(&commit[..std::cmp::min(commit.len(), 7)]) || tag.contains(&installed_version) {
