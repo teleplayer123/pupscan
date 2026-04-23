@@ -11,7 +11,7 @@ pub struct OsvFetcher;
 impl OsvFetcher {
     // Retuns a list of Vulnerabilities or an error string
     pub fn fetch_data(pkg: &Package) -> Result<Vec<Vulnerability>, String> {
-        let ecosystem = Self::map_ecosystem(&pkg.source);
+        let ecosystem = pkg.source.as_str();
         let url = "https://api.osv.dev/v1/query";
         
         let query = if !pkg.purl.is_none() {
@@ -72,17 +72,6 @@ impl OsvFetcher {
             .map_err(|e| e.to_string())?;
 
         Ok(())
-    }
-
-    fn map_ecosystem(source: &PackageSource) -> &'static str {
-        match source {
-            PackageSource::CargoToml => "crates.io",
-            PackageSource::PyPI => "PyPI",
-            PackageSource::Npm => "npm",
-            PackageSource::Go => "Go",
-            PackageSource::GIT => "GIT",
-            PackageSource::RubyGems => "RubyGems",
-        }
     }
 
     fn parse_osv(vuln: OsvVuln, source: PackageSource, purl: Option<String>) -> Vec<Vulnerability> {

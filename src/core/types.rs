@@ -20,6 +20,19 @@ pub enum PackageSource {
     RubyGems,
 }
 
+impl PackageSource {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PackageSource::CargoToml => "crates.io",
+            PackageSource::PyPI => "PyPI",
+            PackageSource::Npm => "npm",
+            PackageSource::Go => "Go",
+            PackageSource::GIT => "GIT",
+            PackageSource::RubyGems => "RubyGems",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Vulnerability {
     pub id: String,

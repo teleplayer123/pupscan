@@ -1,25 +1,25 @@
 use crate::core::traits::Matcher;
 use crate::core::types::*;
+use crate::core::log::{log_message, Level};
 use semver::Version;
 
 pub struct EcosystemMatcher;
 
 impl Matcher for EcosystemMatcher {
-    fn match_packages(
-        &self,
-        packages: &[Package],
-        vulns: &[Vulnerability],
-    ) -> Vec<Finding> {
+    fn match_packages(&self, packages: &[Package], vulns: &[Vulnerability]) -> Vec<Finding> {
         let mut findings = Vec::new();
 
         for pkg in packages {
             let cleaned_version = normalize_version(&pkg.version);
+            log_message(Level::Debug, "ECOSYSTEM", &format!("Normalized version for package {}: {}", &pkg.name, &cleaned_version));
 
             let parsed_version = match Version::parse(&cleaned_version) {
                 Ok(v) => v,
                 Err(_) => continue,
             };
+            log_message(Level::Debug, "ECOSYSTEM", &format!("Parsed version for package {}: {:?}", &pkg.name, &parsed_version));
 
+            // Binary search to match pkg to vuln
             for vuln in vulns {
                 if pkg.name != vuln.package {
                     continue;
@@ -30,6 +30,8 @@ impl Matcher for EcosystemMatcher {
                         continue;
                     }
                 }
+
+                log_message(Level::Debug, "ECOSYSTEM", &format!("Matched vulnerability to package: {} == {}", &vuln.package, &pkg.name));
 
                 for range in &vuln.version_ranges {
                     if version_in_range(&parsed_version, range) {
