@@ -36,6 +36,7 @@ impl PackageSource {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Vulnerability {
     pub id: String,
+    pub summary: String,
     pub package: String,
     pub version_ranges: Vec<String>,
     pub severity: Severity,

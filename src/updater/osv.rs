@@ -108,6 +108,7 @@ impl OsvFetcher {
             if !version_ranges.is_empty() {
                 results.push(Vulnerability {
                     id: vuln.id.clone(),
+                    summary: vuln.summary.clone(),
                     package,
                     version_ranges,
                     severity: Self::severity_from_osv(vuln.severity.as_ref()),
@@ -351,6 +352,8 @@ pub struct OsvQueryResponse {
 #[derive(Debug, Deserialize)]
 pub struct OsvVuln {
     pub id: String,
+    #[serde(default)]
+    pub summary: String,
     pub affected: Vec<OsvAffected>,
     #[serde(default)]
     pub severity: Option<OsvSeverityField>,
