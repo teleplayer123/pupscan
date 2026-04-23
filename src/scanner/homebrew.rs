@@ -1,5 +1,6 @@
 use crate::core::traits::Scanner;
 use crate::core::types::*;
+use crate::core::log::{log_message, Level};
 use std::fs;
 use regex::Regex;
 
@@ -22,10 +23,10 @@ impl Scanner for HomebrewScanner {
                 for version_entry in fs::read_dir(entry.path()).map_err(|e| e.to_string())? {
                     let version_entry = version_entry.map_err(|e| e.to_string())?;
                     if version_entry.path().is_dir() {
-                        //println!("Found Homebrew package: {}", version_entry.path().display());
+                        log_message(Level::Info, "HOMEBREW", &format!("Entry path: {}", &version_entry.path().display().to_string()));
                         let sbom_path = version_entry.path().join("sbom.spdx.json");
                         let github_url = find_github_url(sbom_path.to_str().unwrap_or_default());
-                        //println!("Found github url: {:?}", &github_url.as_ref().unwrap_or(&"None".to_string()));
+                        log_message(Level::Info, "HOMEBREW", &format!("Github URL: {}", &github_url.as_ref().unwrap_or(&"None".to_string())));
                         let version = version_entry.file_name().into_string().unwrap_or_default();
                         let pkg = Package {
                             name: github_url.unwrap_or_else(|| package_name.clone()).to_string(),

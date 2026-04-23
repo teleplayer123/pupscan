@@ -219,6 +219,7 @@ impl OsvFetcher {
         }
 
         let mut repo_part = purl.trim_start_matches("pkg:git/").split('@').next()?;
+        let installed_version = purl.trim_start_matches("pkg:git/").split('@').nth(1)?;
         repo_part = repo_part.trim_start_matches("https://");
         let repo_url = if repo_part.ends_with(".git") {
             format!("https://{}", repo_part)
@@ -257,11 +258,11 @@ impl OsvFetcher {
             }
         }
 
-        log_message(Level::Info, &"OSV".to_string(), &format!("Searching for version that maps to commit {} for Repo URL {}", &commit, &repo_url));
+        log_message(Level::Debug, &"OSV".to_string(), &format!("Searching for version that maps to commit {} for Repo URL {}", &commit, &repo_url));
         // Try to match by prefix
         for (tag, h) in tag_map {
             log_message(Level::Debug, &"OSV".to_string(), &format!("Trying to match vuln commit {} to found commit {} for PURL: {}", &commit, &h, &purl));
-            if h == commit || h.starts_with(commit) || commit.starts_with(&h) || h.starts_with(&commit[..std::cmp::min(commit.len(), 7)]) {
+            if h == commit || h.starts_with(commit) || commit.starts_with(&h) || h.starts_with(&commit[..std::cmp::min(commit.len(), 7)]) || tag.contains(&installed_version) {
                 log_message(Level::Info, &"OSV".to_string(), &format!("Matched vuln commit {} to version {} for PURL {}", &h, &tag, &purl));
                 return Some(tag);
             }
