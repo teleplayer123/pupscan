@@ -1,7 +1,7 @@
 use std::fs::OpenOptions;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
-use chrono::Local;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 // Defines the severity level of a log message
 #[allow(dead_code)]
@@ -24,6 +24,19 @@ impl Level {
             Level::Trace => "TRACE",
         }
     }
+}
+
+// Formats and computes time from the UNIX epoch manually
+fn timestamp() -> String {
+    let d = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    let secs = d.as_secs();
+    let ms   = d.subsec_millis();
+    let h = (secs % 86400) / 3600;
+    let m = (secs % 3600)  / 60;
+    let s =  secs % 60;
+    format!("{:02}:{:02}:{:02}.{:03}", h, m, s, ms)
 }
 
 // Thread safe logger
@@ -59,9 +72,7 @@ impl Logger {
     // Core logging function
     fn log(&self, level: Level, module: &str, message: &str) {
         // Get current local time
-        let now = Local::now();
-        // Use strftime-like formatting
-        let timestamp = now.format("%Y-%m-%d %H:%M:%S").to_string();
+        let timestamp = timestamp();
 
         // Format the log entry: [Timestamp] [LEVEL] [Module] Message
         let log_entry = format!("[{}] [{:^5}] [{}]: {}\n", timestamp, level.as_str(), module, message);
