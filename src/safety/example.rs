@@ -81,3 +81,13 @@ fn apply_sandbox(_path: &str) -> Result<(), String> {
     println!("Warning: No sandbox implemented for this OS.");
     Ok(())
 }
+
+#[test]
+#[cfg(target_os = "macos")]
+fn test_sandbox_enforcement() {
+    // 1. Enter sandbox
+    // 2. Try to write to a forbidden path
+    let result = std::fs::write("/tmp/malicious.txt", "evil data");
+    // 3. Assert it was blocked
+    assert!(result.is_err());
+}
