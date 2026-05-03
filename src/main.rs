@@ -91,55 +91,7 @@ fn main() {
     }
 }
 
-fn check_cache(scan_path: &str, cache_path: &str) {
-    let cache = CacheManager {
-        path: cache_path.into(),
-        max_age_secs: 60 * 60 * 24,
-    };
-    let cached_vulns = match cache.load() {
-        Ok(v) => v,
-        Err(err) => {
-            eprintln!("Failed to load cache: {}", err);
-            return;
-        }
-    };
-
-    let scanners = scanner_for_path(Path::new(scan_path));
-    if scanners.is_empty() {
-        eprintln!("No scanner available for path: {}", scan_path);
-        return;
-    }
-
-    let mut packages = Vec::new();
-    for scanner in scanners {
-        match scanner.scan(scan_path) {
-            Ok(mut found) => packages.append(&mut found),
-            Err(err) => eprintln!("Scanner failed on {}: {}", scan_path, err),
-        }
-    }
-    let matcher = EcosystemMatcher;
-    let findings = matcher.match_packages(&packages, &cached_vulns);
-    if findings.is_empty() {
-        println!("No known vulnerabilities found in cache for packages at {} ✅", scan_path);
-    } else {
-        println!("Found {} cached vulnerabilities for packages at {}:", findings.len(), scan_path);
-        for f in findings {
-            println!(
-                "[{:?}] {}@{} → {}",
-                f.vulnerability.severity,
-                f.package.name,
-                f.package.version,
-                f.vulnerability.id
-            );
-
-            if let Some(path) = &f.package.path {
-                println!("  Path: {:?}", path);
-            }
-        }
-    }
-}
-
-fn run_scan(input_path_str: &str, all_versions: bool) {
+fn get_packages(input_path_str: &str) -> Vec<Package> {
     let input_path = Path::new(input_path_str);
     if !input_path.exists() {
         eprintln!("Path does not exist: {}", input_path.display());
@@ -187,6 +139,55 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
             }
         }
     }
+
+    packages
+}
+
+fn check_cache(scan_path: &str, cache_path: &str) {
+    let packages = get_packages(scan_path);
+
+    println!("Collected {} package entries", packages.len());
+    if packages.is_empty() {
+        println!("No packages to scan; exiting.");
+        return;
+    }
+
+    let cache = CacheManager {
+        path: cache_path.into(),
+        max_age_secs: 60 * 60 * 24,
+    };
+    let cached_vulns = match cache.load() {
+        Ok(v) => v,
+        Err(err) => {
+            eprintln!("Failed to load cache: {}", err);
+            return;
+        }
+    };
+
+    let matcher = EcosystemMatcher;
+    let findings = matcher.match_packages(&packages, &cached_vulns);
+    if findings.is_empty() {
+        println!("No known vulnerabilities found in cache for packages at {} ✅", scan_path);
+    } else {
+        println!("Found {} cached vulnerabilities for packages at {}:", findings.len(), scan_path);
+        for f in findings {
+            println!(
+                "[{:?}] {}@{} → {}",
+                f.vulnerability.severity,
+                f.package.name,
+                f.package.version,
+                f.vulnerability.id
+            );
+
+            if let Some(path) = &f.package.path {
+                println!("  Path: {:?}", path);
+            }
+        }
+    }
+}
+
+fn run_scan(input_path_str: &str, all_versions: bool) {
+    let packages = get_packages(input_path_str);
 
     println!("Collected {} package entries", packages.len());
     if packages.is_empty() {
