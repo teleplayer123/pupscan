@@ -99,7 +99,7 @@ impl Logger {
 
 // Globally accessible, thread-safe logger instance.
 static LOGGER: once_cell::sync::Lazy<Arc<Logger>> = once_cell::sync::Lazy::new(|| {
-    Arc::new(Logger::new("pupscan.log"))
+    Arc::new(Logger::new("./sandbox/pupscan.log"))
 });
 
 

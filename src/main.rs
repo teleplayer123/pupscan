@@ -3,6 +3,7 @@ mod scanner;
 mod matcher;
 mod database;
 mod updater;
+mod safety;
 
 use core::traits::{Matcher, Scanner};
 use core::types::{Package, PackageSource};
@@ -13,6 +14,7 @@ use clap::{Parser, Subcommand};
 use scanner::{CargoScanner, NpmScanner, PythonScanner, GoScanner, HomebrewScanner};
 use matcher::EcosystemMatcher;
 use updater::{OsvFetcher, CacheManager};
+use safety::enter_sandbox;
 
 #[derive(Parser)]
 #[command(name = "pupscan")]
@@ -80,6 +82,7 @@ fn scanner_for_path(path: &Path) -> Vec<Box<dyn Scanner>> {
 
 fn main() {
     let cli = Cli::parse();
+    enter_sandbox();
     let _ = initialize_logger();
     log_message(Level::Info, &"MAIN".to_string(), &"Logger initialized!".to_string());
 
