@@ -253,7 +253,7 @@ impl OsvFetcher {
         for (tag, h) in tag_map {
             log_message(Level::Debug, &"OSV".to_string(), &format!("Trying to match vuln commit {} to found commit {} for PURL: {}", &commit, &h, &purl));
             if h == commit || tag.contains(&installed_version) {
-                log_message(Level::Info, &"OSV".to_string(), &format!("Matched vuln commit {} to version {} for PURL {}", &h, &tag, &purl));
+                log_message(Level::Info, &"OSV".to_string(), &format!("Matched vuln commit {} to found commit {} with version {} for PURL {}", &commit, &h, &tag, &purl));
                 return Some(tag);
             }
         }
