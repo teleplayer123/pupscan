@@ -96,7 +96,7 @@ fn parse_constraint(segment: &str) -> Option<(String, Version)> {
         return None;
     }
 
-    let ops = [">=", "<=", ">", "<", "=", "=="];
+    let ops = [">=", "<=", ">", "<", "==", "="];
     let mut op = "=";
     let mut version_part = segment;
 

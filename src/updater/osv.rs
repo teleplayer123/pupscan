@@ -143,7 +143,7 @@ impl OsvFetcher {
         }
 
         if let Some(start) = current_start {
-            version_ranges.push(format!("{}", start));
+            version_ranges.push(format!(">={}", start));
         }
 
         version_ranges
