@@ -28,13 +28,13 @@ impl Scanner for HomebrewScanner {
                         let github_url = find_github_url(sbom_path.to_str().unwrap_or_default());
                         log_message(Level::Info, "HOMEBREW", &format!("Github URL: {}", &github_url.as_ref().unwrap_or(&"None".to_string())));
                         let version = version_entry.file_name().into_string().unwrap_or_default();
-                        let purl = github_url.map(|url| format!("pkg:git/{}@{}", url, version));
+                        //let purl = github_url.map(|url| format!("pkg:git/{}@{}", url, version));
                         let pkg = Package {
-                            name: package_name.clone(),
+                            name: github_url.unwrap_or(package_name.to_string()),
                             version,
                             source: PackageSource::GIT,
                             path: Some(version_entry.path().to_str().unwrap_or_default().into()),
-                            purl,
+                            purl: None,
                         };
                         packages.push(pkg);
                     }
@@ -58,8 +58,8 @@ fn find_github_url(sbom_path: &str) -> Option<String> {
             if let Some(download_location) = package.get("downloadLocation").and_then(|d| d.as_str()) {
                 if download_location.contains("github.com") {
                     if let Some(caps) = re.captures(download_location) {
-                        // Add .git suffix to the end of the url
-                        let github_url = format!("{}.git", caps.get(0).unwrap().as_str());
+                        // Format github url
+                        let github_url = format!("{}", caps.get(0).unwrap().as_str());
                         return Some(github_url);
                     }
                 }
