@@ -2,12 +2,15 @@ use crate::core::traits::Matcher;
 use crate::core::types::*;
 use crate::core::log::{log_message, Level};
 use semver::Version;
+use regex::Regex;
 
 pub struct EcosystemMatcher;
 
 impl Matcher for EcosystemMatcher {
     fn match_packages(&self, packages: &[Package], vulns: &[Vulnerability]) -> Vec<Finding> {
         let mut findings = Vec::new();
+        // Regex to extract https://github.com/owner/repo from package name for GIT sources
+        let re = Regex::new(r"https://github\.com/[^/\s]+/([^/\s]+)").unwrap();
 
         for pkg in packages {
             let cleaned_version = normalize_version(&pkg.version);
@@ -21,15 +24,29 @@ impl Matcher for EcosystemMatcher {
 
             // Binary search to match pkg to vuln
             for vuln in vulns {
-                if pkg.name != vuln.package {
-                    continue;
-                }
-
                 if let Some(vuln_source) = &vuln.source {
                     if vuln_source != &pkg.source {
                         continue;
                     }
                 }
+
+                // Extract package name for GIT sources
+                let pkg_name = if &pkg.source.as_str() == &"GIT" {
+                    if let Some(caps) = re.captures(&pkg.name) {
+                        caps.get(1).map_or(pkg.name.as_str(), |m| m.as_str())
+                    } else {
+                        pkg.name.as_str()
+                    }
+                } else {
+                    pkg.name.as_str()
+                };
+
+                log_message(Level::Debug, "ECOSYSTEM", &format!("Trying to match package name {} to vuln package {}", pkg_name, &vuln.package));
+                if pkg_name != vuln.package {
+                    continue;
+                }
+
+
 
                 log_message(Level::Debug, "ECOSYSTEM", &format!("Matched vulnerability to package: {} == {}", &vuln.package, &pkg.name));
 
@@ -56,6 +73,11 @@ fn normalize_version(v: &str) -> String {
     }
     if version.starts_with('v') {
         version = &version[1..];
+    }
+
+    // Strip any non-digit prefix (e.g., "release-" in "release-78.3")
+    if let Some(pos) = version.find(|c: char| c.is_ascii_digit()) {
+        version = &version[pos..];
     }
 
     let mut cleaned = version.trim().to_string();
@@ -96,7 +118,7 @@ fn parse_constraint(segment: &str) -> Option<(String, Version)> {
         return None;
     }
 
-    let ops = [">=", "<=", ">", "<", "=", "=="];
+    let ops = [">=", "<=", ">", "<", "==", "="];
     let mut op = "=";
     let mut version_part = segment;
 

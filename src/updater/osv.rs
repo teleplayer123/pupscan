@@ -1,10 +1,8 @@
 use crate::core::types::*;
 use crate::database::json_store::JsonStore;
-use crate::core::purl::build_purl;
 use crate::core::log::{log_message, Level};
 use serde::Deserialize;
 use serde_json::json;
-use std::process::Command;
 
 pub struct OsvFetcher;
 
@@ -30,6 +28,8 @@ impl OsvFetcher {
             })
         };
 
+        log_message(Level::Debug, &"OSV", &format!("{:?}", &query));
+
         let response_body = ureq::post(url)
             .set("Content-Type", "application/json")
             .send_string(&query.to_string())
@@ -48,11 +48,9 @@ impl OsvFetcher {
         //println!("Response: {:?}", &response);
         log_message(Level::Info, "OSV", &format!("Response -> {:?}", &response));
 
-        let purl = pkg.purl.clone().or_else(|| build_purl(pkg));
-
         let mut results = Vec::new();
         for vuln in response.vulns {
-            results.extend(Self::parse_osv(vuln, pkg.source.clone(), purl.clone()));
+            results.extend(Self::parse_osv(vuln, pkg.source.clone()));
         }
 
         Ok(results)
@@ -74,7 +72,7 @@ impl OsvFetcher {
         Ok(())
     }
 
-    fn parse_osv(vuln: OsvVuln, source: PackageSource, purl: Option<String>) -> Vec<Vulnerability> {
+    fn parse_osv(vuln: OsvVuln, source: PackageSource) -> Vec<Vulnerability> {
         let mut results = Vec::new();
 
         for affected in vuln.affected {
@@ -90,18 +88,17 @@ impl OsvFetcher {
                                 Some(_value.to_string())
                             }));
                         }
-                        "GIT" => {
-                            version_ranges.extend(Self::collect_version_ranges(&range.events, |value| {
-                                // normalize function parameter to resolve git commits to tags when possible
-                                if value.starts_with('v') || value.contains('.') {
-                                    Some(value.to_string())
-                                } else {
-                                    Self::resolve_commit_to_tag(value, &purl)
-                                }
-                            }));
-                        }
+                        // GIT range events contain commit hashes, not version strings.
+                        // Affected versions for GIT ecosystem packages come from affected.versions below.
                         _ => {}
                     }
+                }
+            }
+
+            // When GIT commit resolution yielded nothing, fall back to the explicit versions list
+            if version_ranges.is_empty() && !affected.versions.is_empty() {
+                for v in &affected.versions {
+                    version_ranges.push(format!("={}", v));
                 }
             }
 
@@ -199,66 +196,6 @@ impl OsvFetcher {
             },
             None => Severity::Medium,
         }
-    }
-
-    fn resolve_commit_to_tag(commit: &str, purl: &Option<String>) -> Option<String> {
-        // Only attempt resolution when we have a pkg:git purl
-        let purl = purl.as_ref()?;
-        if !purl.starts_with("pkg:git/") {
-            return None;
-        }
-
-        let mut repo_part = purl.trim_start_matches("pkg:git/").split('@').next()?;
-        let installed_version = purl.trim_start_matches("pkg:git/").split('@').nth(1)?;
-        repo_part = repo_part.trim_start_matches("https://");
-        let repo_url = if repo_part.ends_with(".git") {
-            format!("https://{}", repo_part)
-        } else {
-            format!("https://{}.git", repo_part)
-        };
-
-        let output = Command::new("git")
-            .arg("ls-remote")
-            .arg("--tags")
-            .arg(&repo_url)
-            .output()
-            .ok()?;
-
-        if !output.status.success() {
-            return None;
-        }
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let mut tag_map = std::collections::HashMap::new();
-
-        for line in stdout.lines() {
-            let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() < 2 {
-                continue;
-            }
-            let hash = parts[0];
-            let refname = parts[1];
-
-            if refname.ends_with("^{}") {
-                let tag = refname.trim_start_matches("refs/tags/").trim_end_matches("^{}");
-                tag_map.insert(tag.to_string(), hash.to_string());
-            } else if refname.starts_with("refs/tags/") {
-                let tag = refname.trim_start_matches("refs/tags/");
-                tag_map.entry(tag.to_string()).or_insert_with(|| hash.to_string());
-            }
-        }
-
-        log_message(Level::Debug, &"OSV".to_string(), &format!("Searching for version that maps to commit {} for Repo URL {}", &commit, &repo_url));
-        // Try to match by commit hash or local package version
-        for (tag, h) in tag_map {
-            log_message(Level::Debug, &"OSV".to_string(), &format!("Trying to match vuln commit {} to found commit {} for PURL: {}", &commit, &h, &purl));
-            if h == commit || tag.contains(&installed_version) {
-                log_message(Level::Info, &"OSV".to_string(), &format!("Matched vuln commit {} to version {} for PURL {}", &h, &tag, &purl));
-                return Some(tag);
-            }
-        }
-
-        None
     }
 
     fn calculate_cvss3_base_score(vector: &str) -> Option<f32> {
@@ -377,6 +314,8 @@ pub struct OsvSeverity {
 pub struct OsvAffected {
     pub package: OsvPackage,
     pub ranges: Option<Vec<OsvRange>>,
+    #[serde(default)]
+    pub versions: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
