@@ -89,7 +89,7 @@ mod tests {
         };
         assert_eq!(
             build_purl(&pkg),
-            Some("pkg:generic/homebrew/python@3.9.0".to_string())
+            Some("pkg:git/python@3.9.0".to_string())
         );
     }
 

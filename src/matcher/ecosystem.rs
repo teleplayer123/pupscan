@@ -58,6 +58,11 @@ fn normalize_version(v: &str) -> String {
         version = &version[1..];
     }
 
+    // Strip any non-digit prefix (e.g., "release-" in "release-78.3")
+    if let Some(pos) = version.find(|c: char| c.is_ascii_digit()) {
+        version = &version[pos..];
+    }
+
     let mut cleaned = version.trim().to_string();
     let dot_count = cleaned.matches('.').count();
     if dot_count == 0 {
@@ -96,7 +101,7 @@ fn parse_constraint(segment: &str) -> Option<(String, Version)> {
         return None;
     }
 
-    let ops = [">=", "<=", ">", "<", "=", "=="];
+    let ops = [">=", "<=", ">", "<", "==", "="];
     let mut op = "=";
     let mut version_part = segment;
 

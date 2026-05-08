@@ -105,6 +105,13 @@ impl OsvFetcher {
                 }
             }
 
+            // When GIT commit resolution yielded nothing, fall back to the explicit versions list
+            if version_ranges.is_empty() && !affected.versions.is_empty() {
+                for v in &affected.versions {
+                    version_ranges.push(format!("= {}", v));
+                }
+            }
+
             if !version_ranges.is_empty() {
                 results.push(Vulnerability {
                     id: vuln.id.clone(),
@@ -143,7 +150,7 @@ impl OsvFetcher {
         }
 
         if let Some(start) = current_start {
-            version_ranges.push(format!("{}", start));
+            version_ranges.push(format!(">={}", start));
         }
 
         version_ranges
@@ -377,6 +384,8 @@ pub struct OsvSeverity {
 pub struct OsvAffected {
     pub package: OsvPackage,
     pub ranges: Option<Vec<OsvRange>>,
+    #[serde(default)]
+    pub versions: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
