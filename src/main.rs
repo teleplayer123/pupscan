@@ -32,16 +32,9 @@ enum Commands {
         #[arg(long)]
         all_versions: bool,
     },
-    // Fetch OSV vulnerability data for a specific package and version
-    Fetch {
-        // Package ecosystem (crates.io, PyPI, npm)
-        ecosystem: String,
-        // Package name
-        package: String,
-        // Package version
-        #[arg(short, long, default_value = "*")]
-        version: String,
-    },
+    // Fetch OSV vulnerability data by ID or package constraints
+    #[command(subcommand)]
+    Fetch(FetchCommand),
     // View the local vulnerability cache
     Check {
         // Path to scan for package manifests (file or directory)
@@ -56,9 +49,19 @@ enum Commands {
         #[arg(short, long, default_value_t = false)]
         force: bool,
     },
-    // Get info about vulnerability by ID
-    Info {
-        // Vulnerability ID to look up
+}
+
+#[derive(Subcommand)]
+enum FetchCommand {
+    // Fetch vulnerabilities by package name, ecosystem, and optionally version
+    Package {
+        ecosystem: String,
+        package: String,
+        #[arg(short, long, default_value = "*")]
+        version: String,
+    },
+    // Fetch vulnerability details by OSV ID
+    Id {
         id: String,
     },
 }
@@ -90,10 +93,12 @@ fn main() {
 
     match cli.command {
         Commands::Scan { path, all_versions } => run_scan(&path, all_versions),
-        Commands::Fetch { ecosystem, package, version } => run_fetch(&ecosystem, &package, &version),
+        Commands::Fetch(fetch_command) => match fetch_command {
+            FetchCommand::Package { ecosystem, package, version } => run_fetch(&ecosystem, &package, &version),
+            FetchCommand::Id { id } => get_vuln_info(&id),
+        },
         Commands::Check { scan_path, cache_path } => check_cache(&scan_path, &cache_path),
         Commands::Update { force } => run_update(force),
-        Commands::Info { id } => get_vuln_info(&id),
     }
 }
 
