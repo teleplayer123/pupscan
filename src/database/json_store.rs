@@ -1,4 +1,4 @@
-use crate::core::traits::VulnerabilityStore;
+// use crate::core::traits::VulnerabilityStore;
 use crate::core::types::*;
 use std::fs;
 use std::collections::HashSet;
@@ -57,17 +57,5 @@ impl JsonStore {
         fs::rename(tmp_path, &self.path).map_err(|e| e.to_string())?;
 
         Ok(())
-    }
-}
-
-impl VulnerabilityStore for JsonStore {
-    fn load(&self) -> Result<Vec<Vulnerability>, String> {
-        match fs::read_to_string(&self.path) {
-            Ok(data) => {
-                serde_json::from_str(&data)
-                    .map_err(|e| e.to_string())
-            }
-            Err(_) => Ok(Vec::new()),
-        }
     }
 }
