@@ -58,6 +58,11 @@ enum Commands {
         #[arg(short, long, default_value_t = false)]
         force: bool,
     },
+    // Get info about vulnerability by ID
+    Info {
+        // Vulnerability ID to look up
+        id: String,
+    },
 }
 
 fn scanner_for_path(path: &Path) -> Vec<Box<dyn Scanner>> {
@@ -91,6 +96,40 @@ fn main() {
         Commands::Fetch { ecosystem, package, version } => run_fetch(&ecosystem, &package, &version),
         Commands::Check { scan_path, cache_path } => check_cache(&scan_path, &cache_path),
         Commands::Update { force } => run_update(force),
+        Commands::Info { id } => get_vuln_info(&id),
+    }
+}
+
+fn get_vuln_info(id: &str) {
+    match OsvFetcher::get_vuln_by_id(id) {
+        Ok(vuln) => {
+            println!("ID: {}", &vuln.id);
+            println!("Summary: {}", &vuln.summary);
+            if let Some(severity) = &vuln.severity {
+                println!("Severity: {:?}", severity);
+            }
+            for affected in &vuln.affected {
+                println!("  Affected package: {}", affected.package.name);
+                if let Some(ranges) = &affected.ranges {
+                    for range in ranges {
+                        println!("  Range type: {}", range.range_type);
+                        for event in &range.events {
+                            if let Some(introduced) = &event.introduced {
+                                println!("  Introduced in: {}", introduced);
+                            }
+                            if let Some(fixed) = &event.fixed {
+                                println!("  Fixed in: {}", fixed);
+                            }
+                        }
+                    }
+                }
+                println!("  Affected versions: {:#?}", affected.versions.iter().map(|v| v.as_str()).collect::<Vec<_>>());
+            }
+        }
+        Err(err) => {
+            eprintln!("Failed to fetch vulnerability info: {}", err);
+            std::process::exit(1);
+        }
     }
 }
 

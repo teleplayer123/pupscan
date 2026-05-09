@@ -56,6 +56,20 @@ impl OsvFetcher {
         Ok(results)
     }
 
+    pub fn get_vuln_by_id(id: &str) -> Result<OsvVuln, String> {
+        let url = format!("https://api.osv.dev/v1/vulns/{}", id);
+
+        let response_body = ureq::get(&url)
+            .call()
+            .map_err(|e| e.to_string())?
+            .into_string()
+            .map_err(|e| e.to_string())?;
+
+        let vuln: OsvVuln = serde_json::from_str(&response_body)
+            .map_err(|e| e.to_string())?;
+        Ok(vuln)
+    }
+
     #[allow(dead_code)]
     pub fn save_to_database(vulns: &[Vulnerability], db_path: &str) -> Result<(), String> {
         let store = JsonStore {
