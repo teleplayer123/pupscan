@@ -147,7 +147,9 @@ fn parse_requirement(req: &str) -> (&str, &str) {
 
     for op in operators {
         if let Some((name, version)) = req.split_once(op) {
-            return (name.trim(), version.trim());
+            let name = name.trim().trim_end_matches('(').trim();
+            let version = version.trim().trim_end_matches(')').trim();
+            return (name, version);
         }
     }
 

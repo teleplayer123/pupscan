@@ -8,3 +8,5 @@ requirements.txt
 sample.txt
 pupscan.log
 .DS_Store
+.claude
+pyproject.toml
