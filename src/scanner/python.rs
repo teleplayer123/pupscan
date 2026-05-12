@@ -1,6 +1,7 @@
 use crate::core::traits::Scanner;
 use crate::core::types::*;
 use crate::core::purl::build_purl;
+use crate::core::log::{log_message, Level};
 use std::fs;
 
 pub struct PythonScanner;
@@ -22,6 +23,8 @@ impl Scanner for PythonScanner {
                     for dep in array {
                         if let Some(dep_str) = dep.as_str() {
                             let (name, version) = parse_requirement(dep_str);
+                            log_message(Level::Info, "PYTHON", &format!("Found dev dependency: {} {}", &name, &version));
+                            
                             packages.push(Package {
                                 name: name.to_string(),
                                 version: version.to_string(),
@@ -46,6 +49,7 @@ impl Scanner for PythonScanner {
                             toml::Value::Table(t) => t.get("version").and_then(|v| v.as_str()).unwrap_or("*"),
                             _ => "*",
                         };
+                        log_message(Level::Info, "PYTHON", &format!("Found dev dependency: {} {}", &name, &version));
 
                         packages.push(Package {
                             name: name.to_string(),
@@ -67,6 +71,7 @@ impl Scanner for PythonScanner {
                             toml::Value::Table(t) => t.get("version").and_then(|v| v.as_str()).unwrap_or("*"),
                             _ => "*",
                         };
+                        log_message(Level::Info, "PYTHON", &format!("Found dev dependency: {} {}", &name, &version));
 
                         packages.push(Package {
                             name: name.to_string(),
@@ -84,6 +89,8 @@ impl Scanner for PythonScanner {
                     for dep in array {
                         if let Some(dep_str) = dep.as_str() {
                             let (name, version) = parse_requirement(dep_str);
+                            log_message(Level::Info, "PYTHON", &format!("Found dev dependency: {} {}", &name, &version));
+
                             packages.push(Package {
                                 name: name.to_string(),
                                 version: version.to_string(),
@@ -112,6 +119,8 @@ impl Scanner for PythonScanner {
             }
 
             let (name, version) = parse_requirement(line);
+            log_message(Level::Info, "PYTHON", &format!("Found dev dependency: {} {}", &name, &version));
+
             let pkg = Package {
                 name: name.to_string(),
                 version: version.to_string(),
@@ -138,7 +147,9 @@ fn parse_requirement(req: &str) -> (&str, &str) {
 
     for op in operators {
         if let Some((name, version)) = req.split_once(op) {
-            return (name.trim(), version.trim());
+            let name = name.trim().trim_end_matches('(').trim();
+            let version = version.trim().trim_end_matches(')').trim();
+            return (name, version);
         }
     }
 
