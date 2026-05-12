@@ -14,7 +14,7 @@ impl Matcher for EcosystemMatcher {
 
         for pkg in packages {
             let cleaned_version = normalize_version(&pkg.version);
-            log_message(Level::Debug, "ECOSYSTEM", &format!("Normalized version for package {}: {}", &pkg.name, &cleaned_version));
+            log_message(Level::Debug, "ECOSYSTEM", &format!("Normalized version for package {} version {}: {}", &pkg.name, &pkg.version, &cleaned_version));
 
             let parsed_version = match Version::parse(&cleaned_version) {
                 Ok(v) => v,
@@ -78,6 +78,11 @@ fn normalize_version(v: &str) -> String {
     // Strip any non-digit prefix (e.g., "release-" in "release-78.3")
     if let Some(pos) = version.find(|c: char| c.is_ascii_digit()) {
         version = &version[pos..];
+    }
+
+    if let Some((actual_version, _max_version)) = version.split_once(",") {
+        version = actual_version.split_terminator(&",").next().unwrap_or(version);
+        log_message(Level::Debug, "ECOSYSTEM", &format!("Actual version after split: {}", &version));
     }
 
     let mut cleaned = version.trim().to_string();
