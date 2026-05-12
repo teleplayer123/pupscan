@@ -80,6 +80,7 @@ fn normalize_version(v: &str) -> String {
         version = &version[pos..];
     }
 
+    // Handle cases like "1.2.3, <2.0.0" by taking the first part before the comma
     if let Some((actual_version, _max_version)) = version.split_once(",") {
         version = actual_version.split_terminator(&",").next().unwrap_or(version);
         log_message(Level::Debug, "ECOSYSTEM", &format!("Actual version after split: {}", &version));
