@@ -12,7 +12,7 @@ use clap::{Parser, Subcommand};
 
 use scanner::{CargoScanner, NpmScanner, PythonScanner, GoScanner, HomebrewScanner};
 use matcher::EcosystemMatcher;
-use updater::{OsvFetcher, CacheManager};
+use updater::{OsvFetcher, CacheManager, NvdFetcher};
 
 #[derive(Parser)]
 #[command(name = "pupscan")]
@@ -31,6 +31,9 @@ enum Commands {
         // Fetch vulnerabilities for all versions of packages, not just the specified versions
         #[arg(long)]
         all_versions: bool,
+        // Also query NVD/CVE database (slower; set NVD_API_KEY env var for higher rate limits)
+        #[arg(long)]
+        nvd: bool,
     },
     // Fetch OSV vulnerability data by ID or package constraints
     #[command(subcommand)]
@@ -92,7 +95,7 @@ fn main() {
     log_message(Level::Info, &"MAIN".to_string(), &"Logger initialized!".to_string());
 
     match cli.command {
-        Commands::Scan { path, all_versions } => run_scan(&path, all_versions),
+        Commands::Scan { path, all_versions, nvd } => run_scan(&path, all_versions, nvd),
         Commands::Fetch(fetch_command) => match fetch_command {
             FetchCommand::Package { ecosystem, package, version } => run_fetch(&ecosystem, &package, &version),
             FetchCommand::Id { id } => get_vuln_info(&id),
@@ -103,6 +106,17 @@ fn main() {
 }
 
 fn get_vuln_info(id: &str) {
+    if id.starts_with("CVE-") {
+        match NvdFetcher::get_cve_by_id(id) {
+            Ok(cve) => print_nvd_cve(&cve),
+            Err(err) => {
+                eprintln!("Failed to fetch CVE from NVD: {}", err);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
     match OsvFetcher::get_vuln_by_id(id) {
         Ok(vuln) => {
             println!("ID: {}", &vuln.id);
@@ -131,6 +145,59 @@ fn get_vuln_info(id: &str) {
         Err(err) => {
             eprintln!("Failed to fetch vulnerability info: {}", err);
             std::process::exit(1);
+        }
+    }
+}
+
+fn print_nvd_cve(cve: &updater::nvd::NvdCve) {
+    println!("ID: {}", cve.id);
+    if !cve.published.is_empty() {
+        println!("Published: {}", cve.published);
+    }
+    if let Some(desc) = cve.descriptions.iter().find(|d| d.lang == "en") {
+        println!("Description: {}", desc.value);
+    }
+
+    // CVSS scores — prefer v3.1 > v3.0 > v2
+    let metric = cve.metrics.cvss_metric_v31.as_ref().and_then(|v| v.first())
+        .or_else(|| cve.metrics.cvss_metric_v30.as_ref().and_then(|v| v.first()))
+        .or_else(|| cve.metrics.cvss_metric_v2.as_ref().and_then(|v| v.first()));
+
+    if let Some(m) = metric {
+        println!("CVSS Score: {} ({})", m.cvss_data.base_score, m.cvss_data.base_severity);
+        if !m.cvss_data.vector_string.is_empty() {
+            println!("  Vector: {}", m.cvss_data.vector_string);
+        }
+    }
+
+    // Affected configurations (CPE)
+    let mut printed_cpe_header = false;
+    for config in &cve.configurations {
+        for node in &config.nodes {
+            for m in &node.cpe_match {
+                if !m.vulnerable { continue; }
+                if !printed_cpe_header {
+                    println!("Affected configurations:");
+                    printed_cpe_header = true;
+                }
+                print!("  {}", m.criteria);
+                if let Some(v) = &m.version_start_including { print!(" >= {}", v); }
+                if let Some(v) = &m.version_start_excluding { print!(" > {}", v); }
+                if let Some(v) = &m.version_end_including   { print!(" <= {}", v); }
+                if let Some(v) = &m.version_end_excluding   { print!(" < {}", v); }
+                println!();
+            }
+        }
+    }
+
+    // References (cap at 5 to keep output readable)
+    if !cve.references.is_empty() {
+        println!("References:");
+        for r in cve.references.iter().take(5) {
+            println!("  {}", r.url);
+        }
+        if cve.references.len() > 5 {
+            println!("  ... and {} more", cve.references.len() - 5);
         }
     }
 }
@@ -230,7 +297,7 @@ fn check_cache(scan_path: &str, cache_path: &str) {
     }
 }
 
-fn run_scan(input_path_str: &str, all_versions: bool) {
+fn run_scan(input_path_str: &str, all_versions: bool, use_nvd: bool) {
     let packages = get_packages(input_path_str);
 
     println!("Collected {} package entries", packages.len());
@@ -249,54 +316,61 @@ fn run_scan(input_path_str: &str, all_versions: bool) {
         Err(_) => Vec::new(),
     };
 
-    // Fetch fresh vulnerabilities for the packages being scanned
-    let mut fetched_vulns = Vec::new();
-    if all_versions {
-        // Collect unique packages by name and source, with version "*" to fetch all vulnerabilities
-        let mut unique_packages = std::collections::HashMap::new();
+    // Deduplicate packages by (name, source) for fetching
+    let unique_packages: Vec<Package> = {
+        let mut map = std::collections::HashMap::new();
         for pkg in &packages {
             let key = (pkg.name.clone(), pkg.source.clone());
-            unique_packages.entry(key).or_insert(pkg.clone());
+            map.entry(key).or_insert_with(|| pkg.clone());
         }
-        let mut fetch_packages: Vec<Package> = unique_packages
-            .into_values()
-            .filter(|pkg| cache.should_fetch_for_package(&all_vulns, pkg))
-            .collect();
-        for pkg in &mut fetch_packages {
+        map.into_values().collect()
+    };
+
+    let mut fetched_vulns = Vec::new();
+
+    // OSV fetch
+    let mut osv_packages: Vec<Package> = unique_packages.iter()
+        .filter(|pkg| cache.should_fetch_for_package(&all_vulns, pkg))
+        .cloned()
+        .collect();
+    if all_versions {
+        for pkg in &mut osv_packages {
             pkg.version = "*".to_string();
         }
-        for pkg in &fetch_packages {
-            match OsvFetcher::fetch_data(pkg) {
-                Ok(mut pkg_vulns) => fetched_vulns.append(&mut pkg_vulns),
-                Err(err) => eprintln!("OSV fetch failed for {}: {}", pkg.name, err),
-            }
-        }
-    } else {
-        // Collect unique packages by name and source, fetch all vulnerabilities for each
-        let mut unique_packages = std::collections::HashMap::new();
-        for pkg in &packages {
-            let key = (pkg.name.clone(), pkg.source.clone());
-            unique_packages.entry(key).or_insert(pkg.clone());
-        }
-        let fetch_packages: Vec<Package> = unique_packages
-            .into_values()
-            .filter(|pkg| cache.should_fetch_for_package(&all_vulns, pkg))
-            .collect();
-        for pkg in &fetch_packages {
-            match OsvFetcher::fetch_data(pkg) {
-                Ok(mut pkg_vulns) => fetched_vulns.append(&mut pkg_vulns),
-                Err(err) => eprintln!("OSV fetch failed for {}: {}", pkg.name, err),
-            }
+    }
+    for pkg in &osv_packages {
+        match OsvFetcher::fetch_data(pkg) {
+            Ok(mut pkg_vulns) => fetched_vulns.append(&mut pkg_vulns),
+            Err(err) => eprintln!("OSV fetch failed for {}: {}", pkg.name, err),
         }
     }
 
-    // Count new vulnerabilities fetched
-    let new_vulns_count = fetched_vulns.len();
+    // NVD/CVE fetch (opt-in via --nvd)
+    if use_nvd {
+        let has_api_key = std::env::var("NVD_API_KEY").is_ok();
+        // NVD rate limits: 5 req/30s unauthenticated, 50 req/30s with API key
+        let delay_ms: u64 = if has_api_key { 600 } else { 6000 };
+        if !has_api_key {
+            println!("Note: Set NVD_API_KEY env var for higher NVD rate limits (currently 5 req/30s).");
+        }
+        println!("Fetching NVD/CVE data for {} packages...", unique_packages.len());
+        for pkg in &unique_packages {
+            match NvdFetcher::fetch_by_package(pkg) {
+                Ok(mut nvd_vulns) => {
+                    if !nvd_vulns.is_empty() {
+                        println!("  NVD: {} CVEs matched for {}", nvd_vulns.len(), pkg.name);
+                    }
+                    fetched_vulns.append(&mut nvd_vulns);
+                }
+                Err(err) => eprintln!("NVD fetch failed for {}: {}", pkg.name, err),
+            }
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+        }
+    }
 
-    // Merge fetched with existing
+    let new_vulns_count = fetched_vulns.len();
     all_vulns.extend(fetched_vulns);
 
-    // Save merged vulnerabilities to cache
     if let Err(err) = cache.save(&all_vulns) {
         eprintln!("Failed to save vuln cache: {}", err);
     } else {
