@@ -121,26 +121,11 @@ fn get_vuln_info(id: &str) {
         Ok(vuln) => {
             println!("ID: {}", &vuln.id);
             println!("Summary: {}", &vuln.summary);
-            if let Some(severity) = &vuln.severity {
-                println!("Severity: {:?}", severity);
-            }
-            for affected in &vuln.affected {
-                println!("  Affected package: {}", affected.package.name);
-                if let Some(ranges) = &affected.ranges {
-                    for range in ranges {
-                        println!("  Range type: {}", range.range_type);
-                        for event in &range.events {
-                            if let Some(introduced) = &event.introduced {
-                                println!("  Introduced in: {}", introduced);
-                            }
-                            if let Some(fixed) = &event.fixed {
-                                println!("  Fixed in: {}", fixed);
-                            }
-                        }
-                    }
-                }
-                println!("  Affected versions: {:#?}", affected.versions.iter().map(|v| v.as_str()).collect::<Vec<_>>());
-            }
+            println!("Package: {}", &vuln.package);
+            println!("Affected versions: {}", &vuln.affected_versions.join(", "));
+            println!("Fixed versions: {}", &vuln.fix_versions.join(", "));
+            println!("Severity: {}", &vuln.severity);
+            println!("Source: {}", &vuln.source);
         }
         Err(err) => {
             eprintln!("Failed to fetch vulnerability info: {}", err);

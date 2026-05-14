@@ -51,8 +51,30 @@ pub enum Severity {
     Critical,
 }
 
+impl Severity {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Severity::Low => "Low",
+            Severity::Medium => "Medium",
+            Severity::High => "High",
+            Severity::Critical => "Critical",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Finding {
     pub package: Package,
     pub vulnerability: Vulnerability,
+}
+
+#[derive(Debug, Clone)]
+pub struct VulnerabilityReport {
+    pub id: String,
+    pub summary: String,
+    pub package: String,
+    pub affected_versions: Vec<String>,
+    pub fix_versions: Vec<String>,
+    pub severity: String,
+    pub source: String,
 }

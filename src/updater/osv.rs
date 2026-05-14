@@ -56,7 +56,7 @@ impl OsvFetcher {
         Ok(results)
     }
 
-    pub fn get_vuln_by_id(id: &str) -> Result<OsvVuln, String> {
+    pub fn get_vuln_by_id(id: &str) -> Result<VulnerabilityReport, String> {
         let url = format!("https://api.osv.dev/v1/vulns/{}", id);
 
         let response_body = ureq::get(&url)
@@ -67,7 +67,23 @@ impl OsvFetcher {
 
         let vuln: OsvVuln = serde_json::from_str(&response_body)
             .map_err(|e| e.to_string())?;
-        Ok(vuln)
+        
+        let severity = Self::severity_from_osv(vuln.severity.as_ref()).as_str();
+        let package = vuln.affected.clone().into_iter().next()
+            .ok_or_else(|| format!("No affected packages found for CVE '{}'", id))?.package.name;
+        let affected_versions = vuln.affected.clone().into_iter().flat_map(|a| a.versions).collect();
+        let fix_versions = vuln.affected.clone().into_iter().flat_map(|a| a.ranges.unwrap_or_default()).flat_map(|r| r.events.into_iter().filter_map(|e| e.fixed)).collect();
+        let source = vuln.affected.clone().into_iter().flat_map(|a| a.ranges.unwrap_or_default()).flat_map(|r| r.range_type.parse::<String>().ok()).next().unwrap_or_else(|| "Unknown".into());
+
+        Ok(VulnerabilityReport {
+            id: vuln.id.clone(),
+            summary: vuln.summary.clone(),
+            package,
+            affected_versions,
+            fix_versions,
+            severity: severity.to_string(),
+            source,
+        })
     }
 
     #[allow(dead_code)]
@@ -324,7 +340,7 @@ pub struct OsvSeverity {
     pub score: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct OsvAffected {
     pub package: OsvPackage,
     pub ranges: Option<Vec<OsvRange>>,
@@ -332,19 +348,19 @@ pub struct OsvAffected {
     pub versions: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct OsvPackage {
     pub name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct OsvRange {
     #[serde(rename = "type")]
     pub range_type: String,
     pub events: Vec<OsvEvent>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct OsvEvent {
     pub introduced: Option<String>,
     pub fixed: Option<String>,
