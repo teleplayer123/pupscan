@@ -121,6 +121,7 @@ fn get_vuln_info(id: &str) {
         Ok(vuln) => {
             println!("ID: {}", &vuln.id);
             println!("Summary: {}", &vuln.summary);
+            println!("Details: {}", &vuln.details);
             println!("Package: {}", &vuln.package);
             println!("Affected versions: {}", &vuln.affected_versions.join(", "));
             println!("Fixed versions: {}", &vuln.fix_versions.join(", "));

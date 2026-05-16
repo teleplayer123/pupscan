@@ -93,6 +93,7 @@ fn parse_cve_to_vuln(cve: NvdCve, pkg: &Package) -> Option<Vulnerability> {
     Some(Vulnerability {
         id: cve.id,
         summary,
+        details: None, // For simplicity, we won't include the full description here, but it could be added if desired
         package: pkg.name.clone(),
         version_ranges,
         severity,

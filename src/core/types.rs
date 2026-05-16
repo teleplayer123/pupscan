@@ -37,6 +37,7 @@ impl PackageSource {
 pub struct Vulnerability {
     pub id: String,
     pub summary: String,
+    pub details: Option<String>,
     pub package: String,
     pub version_ranges: Vec<String>,
     pub severity: Severity,
@@ -72,6 +73,7 @@ pub struct Finding {
 pub struct VulnerabilityReport {
     pub id: String,
     pub summary: String,
+    pub details: String,
     pub package: String,
     pub affected_versions: Vec<String>,
     pub fix_versions: Vec<String>,
