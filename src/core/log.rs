@@ -89,8 +89,6 @@ impl Logger {
                     eprintln!("FATAL: Could not write to log file '{}': {}", self.file_path, e);
                 }
             }
-        } else {
-            eprintln!("FATAL: Logger not initialized. Cannot write log entry.");
         }
     }
 }
@@ -103,8 +101,12 @@ static LOGGER: once_cell::sync::Lazy<Arc<Logger>> = once_cell::sync::Lazy::new(|
 });
 
 
-// Must be called once at the beginning of the application
-pub fn initialize_logger() -> Result<(), String> {
+// Must be called once at the beginning of the application.
+// Pass `true` to enable file logging, `false` to run silently with no log file.
+pub fn initialize_logger(log_to_file: bool) -> Result<(), String> {
+    if !log_to_file {
+        return Ok(());
+    }
     match LOGGER.init() {
         Ok(_) => Ok(()),
         Err(e) => Err(format!("Failed to initialize logger: {}", e)),

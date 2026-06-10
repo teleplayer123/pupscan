@@ -20,6 +20,9 @@ use updater::{OsvFetcher, CacheManager, NvdFetcher};
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+    /// Write logs to pupscan.log
+    #[arg(short, long)]
+    log_file: bool,
 }
 
 #[derive(Subcommand)]
@@ -91,8 +94,8 @@ fn scanner_for_path(path: &Path) -> Vec<Box<dyn Scanner>> {
 
 fn main() {
     let cli = Cli::parse();
-    let _ = initialize_logger();
-    log_message(Level::Info, &"MAIN".to_string(), &"Logger initialized!".to_string());
+    let _ = initialize_logger(cli.log_file);
+    log_message(Level::Info, &"MAIN".to_string(), &"Logger initialized!");
 
     match cli.command {
         Commands::Scan { path, all_versions, nvd } => run_scan(&path, all_versions, nvd),
